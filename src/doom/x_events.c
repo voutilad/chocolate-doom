@@ -51,6 +51,7 @@ char* eventTypeName(xeventtype_t ev)
 }
 
 char* enemyTypeName(mobj_t* enemy) {
+    // printf("XXX enemy type: %d\n", enemy->type);
     switch (enemy->type)
     {
         case MT_POSSESSED:
@@ -58,7 +59,9 @@ char* enemyTypeName(mobj_t* enemy) {
         case MT_SHOTGUY:
             return "ShotgunSoldier";
         case MT_VILE:
-            return "Imp???";
+            return "Vile";
+        case MT_TROOP:
+            return "Imp";
         case MT_UNDEAD:
             return "Undead";
         case MT_SKULL:
