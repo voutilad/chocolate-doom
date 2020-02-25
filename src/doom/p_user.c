@@ -28,7 +28,7 @@
 
 #include "doomstat.h"
 
-
+#include "deh_main.h"
 
 // Index of the special effects (INVUL inverse) map.
 #define INVERSECOLORMAP		32

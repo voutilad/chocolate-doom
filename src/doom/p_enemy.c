@@ -38,7 +38,7 @@
 // Data.
 #include "sounds.h"
 
-
+#include "x_events.h"
 
 
 typedef enum
@@ -206,7 +206,9 @@ boolean P_CheckMissileRange (mobj_t* actor)
 	// the target just hit the enemy,
 	// so fight back!
 	actor->flags &= ~MF_JUSTHIT;
-	return true;
+
+	X_LogCounterAttack(actor, actor->target);
+    return true;
     }
 	
     if (actor->reactiontime)
@@ -252,6 +254,7 @@ boolean P_CheckMissileRange (mobj_t* actor)
     if (P_Random () < dist)
 	return false;
 		
+    X_LogAttack(actor, actor->target);
     return true;
 }
 
@@ -543,7 +546,9 @@ P_LookForPlayers
 	}
 		
 	actor->target = player->mo;
-	return true;
+    X_LogTargeted(actor, actor->target);
+
+    return true;
     }
 
     return false;
