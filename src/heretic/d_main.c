@@ -19,6 +19,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
+
 #include "txt_main.h"
 #include "txt_io.h"
 
@@ -732,6 +739,26 @@ void D_DoomMain(void)
     char demolumpname[9];
 
     I_PrintBanner(PACKAGE_STRING);
+
+#ifdef _WIN32
+    // [JN] Print colorized title
+    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), BACKGROUND_GREEN
+                                                           | FOREGROUND_RED
+                                                           | FOREGROUND_GREEN
+                                                           | FOREGROUND_BLUE
+                                                           | FOREGROUND_INTENSITY);
+    DEH_printf("                              Russian Heretic " PACKAGE_VERSION
+               "                               ");
+    DEH_printf("\n");
+
+    // [JN] Fallback to standard console colos
+    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED
+                                                           | FOREGROUND_GREEN
+                                                           | FOREGROUND_BLUE);
+#else
+    // [JN] Just print an uncolored banner
+    I_PrintBanner(PACKAGE_STRING);    
+#endif 
 
     I_AtExit(D_Endoom, false);
 
