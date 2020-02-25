@@ -39,6 +39,7 @@
 
 #include "p_inter.h"
 
+#include "x_events.h"
 
 #define BONUSADD	6
 
@@ -204,6 +205,7 @@ P_GiveWeapon
     else
     {
 	gaveweapon = true;
+	X_LogWeaponPickup(weapon);
 	player->weaponowned[weapon] = true;
 	player->pendingweapon = weapon;
     }
@@ -254,6 +256,7 @@ P_GiveArmor
     player->armortype = armortype;
     player->armorpoints = hits;
 	
+	X_LogArmorPickup(armortype);
     return true;
 }
 
@@ -711,6 +714,8 @@ P_KillMobj
 			
 	target->flags &= ~MF_SOLID;
 	target->player->playerstate = PST_DEAD;
+
+	X_LogPlayerDied(source);
 	P_DropWeapon (target->player);
 
 	if (target->player == &players[consoleplayer]
@@ -721,7 +726,10 @@ P_KillMobj
 	    AM_Stop ();
 	}
 	
-    }
+    } else {
+		// If the dying actor is not a player
+		X_LogEnemyKilled(target);
+	}
 
     if (target->health < -target->info->spawnhealth 
 	&& target->info->xdeathstate)
@@ -897,7 +905,8 @@ P_DamageMobj
     }
     
     // do the damage	
-    target->health -= damage;	
+    target->health -= damage;
+	X_LogHit(source, target, damage);
     if (target->health <= 0)
     {
 	P_KillMobj (source, target);
@@ -921,6 +930,10 @@ P_DamageMobj
 	// if not intent on another player,
 	// chase after this one
 	target->target = source;
+
+	// XXX: is this correct?
+	X_LogTargeted(source, target);
+
 	target->threshold = BASETHRESHOLD;
 	if (target->state == &states[target->info->spawnstate]
 	    && target->info->seestate != S_NULL)

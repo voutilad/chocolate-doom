@@ -70,7 +70,7 @@
 #include "r_data.h"
 #include "r_sky.h"
 
-
+#include "x_events.h"
 
 #include "g_game.h"
 
@@ -654,7 +654,9 @@ void G_DoLoadLevel (void)
 	memset (players[i].frags,0,sizeof(players[i].frags)); 
     } 
 		 
-    P_SetupLevel (gameepisode, gamemap, 0, gameskill);    
+    P_SetupLevel (gameepisode, gamemap, 0, gameskill);
+    X_LogStart(gameepisode, gamemap, gameskill);
+
     displayplayer = consoleplayer;		// view the guy you are playing    
     gameaction = ga_nothing; 
     Z_CheckHeap ();
@@ -1330,7 +1332,8 @@ extern char*	pagename;
 void G_ExitLevel (void) 
 { 
     secretexit = false; 
-    gameaction = ga_completed; 
+    gameaction = ga_completed;
+    X_LogExit();
 } 
 
 // Here's for the german edition.

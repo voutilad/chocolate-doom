@@ -39,6 +39,8 @@
 // Data.
 #include "sounds.h"
 
+#include "x_events.h"
+
 // Spechit overrun magic value.
 //
 // This is the value used by PrBoom-plus.  I think the value below is 
@@ -485,6 +487,7 @@ P_TryMove
     int		side;
     int		oldside;
     line_t*	ld;
+    subsector_t *subsec;
 
     floatok = false;
     if (!P_CheckPosition (thing, x, y))
@@ -534,6 +537,8 @@ P_TryMove
 	    oldside = P_PointOnLineSide (oldx, oldy, ld);
 	    if (side != oldside)
 	    {
+            // XXX: this only fires on crossing "special" lines, so needs to be moved up?
+            X_LogSectorCrossing(thing);
 		if (ld->special)
 		    P_CrossSpecialLine (ld-lines, oldside, thing);
 	    }
