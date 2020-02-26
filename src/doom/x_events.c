@@ -14,12 +14,30 @@
 // DESCRIPTION:
 //	Event logging framework and utils
 //
-
-#include "r_defs.h"
-#include "r_main.h"
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <time.h>
 #include "x_events.h"
 
-char* eventTypeName(xeventtype_t ev) 
+#include "i_system.h"
+#include "r_defs.h"
+#include "r_main.h"
+
+#include "cJSON.h"
+
+#define MAX_FILENAME_LEN 128
+#define JSON_BUFFER_LEN 4096
+
+// Used to prevent constant malloc when printing json
+char* jsonbuf = NULL;
+
+// reference to event log file
+int log_fd = -1;
+
+
+// Convert an event type enum into a string representation
+const char* eventTypeName(xeventtype_t ev) 
 {
     switch (ev) {
         case e_start_level:
@@ -50,7 +68,8 @@ char* eventTypeName(xeventtype_t ev)
     return "UNKNOWN_EVENT";
 }
 
-char* enemyTypeName(mobj_t* enemy) {
+// Convert a mobj type into an enemy name string
+const char* enemyTypeName(mobj_t* enemy) {
     // printf("XXX enemy type: %d\n", enemy->type);
     switch (enemy->type)
     {
@@ -82,44 +101,122 @@ subsector_t* guessActorLocation(mobj_t *actor)
 // This should be the one call to rule them all
 void logEvent(xevent_t *ev)
 {
-    char* actor_name;
-    char* target_name;
-    void* actor = NULL;
-    void* target = NULL;
+    cJSON* json;
 
-    if (ev->actor == NULL)
+    json = cJSON_CreateObject();
+    if (json == NULL)
     {
-        actor_name = "(none)";
-    }
-    else if (ev->actor->player)
-    {
-        actor_name = "player";
-        actor = ev->actor;
-    } else
-    {
-        actor_name = enemyTypeName(ev->actor);
-        actor = ev->actor;
+        I_Error("unable to create JSON object?!");
+        return;
     }
 
-    if (ev->target == NULL)
+    cJSON_AddStringToObject(json, "type", eventTypeName(ev->ev_type));
+
+    if (ev->actor != NULL)
     {
-        target_name = "(none)";
+        if (ev->actor->player)
+        {
+            cJSON_AddStringToObject(json, "actor", "player");
+            cJSON_AddNumberToObject(json, "actorId", (uintptr_t) ev->actor);
+        } else 
+        {
+            cJSON_AddStringToObject(json, "actor", enemyTypeName(ev->actor));
+            cJSON_AddNumberToObject(json, "actorId", (uintptr_t) ev->actor);
+        }
     }
-    else if (ev->target->player)
+
+    if (ev->target != NULL)
     {
-        target_name = "player";
-        target = ev->target;
-    } else
-    {
-        target_name = enemyTypeName(ev->target);
-        target = ev->target;
+        if (ev->target->player)
+        {
+            cJSON_AddStringToObject(json, "target", "player");
+            cJSON_AddNumberToObject(json, "targetId", (uintptr_t) ev->target);
+        } else
+        {
+            cJSON_AddStringToObject(json, "target", enemyTypeName(ev->target));
+            cJSON_AddNumberToObject(json, "targetId", (uintptr_t) ev->target);
+        }
     }
     
-    printf(">>> [%s] actor: %s (%p)  target: %s (%p)\n", 
-        eventTypeName(ev->ev_type), 
-        actor_name, actor,
-        target_name, target);
+    if (cJSON_PrintPreallocated(json, jsonbuf, JSON_BUFFER_LEN, false))
+    {
+        write(log_fd, jsonbuf, JSON_BUFFER_LEN);
+        write(log_fd, "\n", 1);
+    } else
+    {
+        I_Error("failed to write event to log!");
+    }
+    cJSON_free(json);
 }
+
+////////
+
+// Initialize event logging framework.
+// Should only be called once!
+int X_InitLog()
+{
+    time_t t;
+    char* filename;
+
+    // Don't init twice
+    if (log_fd > -1)
+    {
+        I_Error("event logfile is already opened!");
+        return -1;
+    }
+    
+    // xxx: danger danger we gon cray cray
+    t = time(NULL);
+    filename = malloc(MAX_FILENAME_LEN);
+    if (filename == NULL)
+    {
+        I_Error("failed to malloc room for filename");
+        return -2;
+    }
+    
+    // blind cast to int for now...who cares?
+    snprintf(filename, MAX_FILENAME_LEN, "doom-%d.log", (int) t);
+    log_fd = open(filename, O_WRONLY | O_APPEND | O_CREAT);
+    free(filename);
+
+    if (log_fd < 0) 
+    {
+        I_Error("failed to open logfile!");
+        return -3;
+    }
+
+    // initialize json write buffer
+    jsonbuf = calloc(JSON_BUFFER_LEN, sizeof(char));
+    if (jsonbuf == NULL)
+    {
+        I_Error("failed to allocate space for json buffer");
+        return -4;
+    }
+
+    return 0;
+}
+
+// Shutdown event logging.
+int X_CloseLog()
+{
+    int r = 0;
+
+    if (close(log_fd) != 0)
+    {
+        I_Error("failed to close doom log file");
+        r = -1;
+    }
+
+    if (jsonbuf != NULL) {
+        free(jsonbuf);
+    } else {
+        I_Error("json buffer not allocated?!");
+        r = -2;
+    }
+
+    return r;
+}
+
 
 ////////
 

@@ -53,6 +53,9 @@ typedef struct xevent_s
     mobj_t*         target;
 } xevent_t;
 
+int X_InitLog();
+int X_CloseLog();
+
 void X_LogStart(int ep, int level, skill_t mode);
 void X_LogExit();
 

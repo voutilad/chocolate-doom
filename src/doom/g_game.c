@@ -74,6 +74,7 @@
 
 #include "g_game.h"
 
+#include "x_events.h"
 
 #define SAVEGAMESIZE	0x2c000
 
@@ -1508,7 +1509,7 @@ void G_DoCompleted (void)
     automapactive = false; 
 
     StatCopy(&wminfo);
- 
+    X_CloseLog();
     WI_Start (&wminfo); 
 } 
 
@@ -1740,6 +1741,7 @@ void G_DoNewGame (void)
     fastparm = false;
     nomonsters = false;
     consoleplayer = 0;
+    X_InitLog();
     G_InitNew (d_skill, d_episode, d_map); 
     gameaction = ga_nothing; 
 } 
