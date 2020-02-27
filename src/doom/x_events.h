@@ -59,6 +59,8 @@ int X_CloseLog();
 void X_LogStart(int ep, int level, skill_t mode);
 void X_LogExit();
 
+void X_LogPosition(mobj_t *actor);
+
 void X_LogEnemyKilled(mobj_t *victim);
 void X_LogPlayerDied(mobj_t *killer);
 
