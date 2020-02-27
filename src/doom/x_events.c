@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include "x_events.h"
 
@@ -111,6 +112,7 @@ void logEvent(xevent_t *ev)
     }
 
     cJSON_AddStringToObject(json, "type", eventTypeName(ev->ev_type));
+    cJSON_AddNumberToObject(json, "time_ms", I_GetTimeMS());
 
     if (ev->actor != NULL)
     {
@@ -142,6 +144,7 @@ void logEvent(xevent_t *ev)
     {
         write(log_fd, jsonbuf, JSON_BUFFER_LEN);
         write(log_fd, "\n", 1);
+        memset(jsonbuf, 0, JSON_BUFFER_LEN);
     } else
     {
         I_Error("failed to write event to log!");
@@ -222,8 +225,7 @@ int X_CloseLog()
 
 void X_LogStart(int ep, int level, skill_t mode)
 {
-    xevent_t ev;
-    ev.ev_type = e_start_level;
+    xevent_t ev = { e_start_level, NULL, NULL };
     logEvent(&ev);
 }
 
@@ -231,6 +233,11 @@ void X_LogExit()
 {
     xevent_t ev = { e_end_level, NULL, NULL };
     logEvent(&ev);
+}
+
+void X_LogPosition(mobj_t *actor)
+{
+
 }
 
 ///////////////
