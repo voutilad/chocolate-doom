@@ -47,6 +47,7 @@ boolean devparm;
 
 void D_DoomMain (void);
 
+#ifdef _WIN32
 void I_RD_SendReturn (void)
 {
     keybd_event(VK_RETURN,
@@ -54,6 +55,7 @@ void I_RD_SendReturn (void)
                 KEYEVENTF_EXTENDEDKEY,
                 0);
 }
+#endif
 
 int main(int argc, char **argv)
 {
