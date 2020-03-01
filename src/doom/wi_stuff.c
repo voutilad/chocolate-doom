@@ -45,6 +45,8 @@
 
 #include "wi_stuff.h"
 
+#include "x_events.h"
+
 //
 // Data needed to add patches to full screen intermission pics.
 // Patches are statistics messages, and animations.
@@ -1821,8 +1823,24 @@ void WI_initVariables(wbstartstruct_t* wbstartstruct)
 
 void WI_Start(wbstartstruct_t* wbstartstruct)
 {
+    int episode = wbstartstruct->epsd;
+    int level = wbstartstruct->next;
+
     WI_initVariables(wbstartstruct);
     WI_loadData();
+
+    if (X_InitLog(episode, level) == -1)
+    {
+        // Try cycling the log...this happens between levels
+        if (X_CloseLog() == 0)
+        {
+            // Last chance at love here, hard failure if this doesn't work
+            if (X_InitLog(episode, level) < 0)
+            {
+                I_Error("Something wrong...cannot init log!");
+            }
+        }
+    }
 
     if (deathmatch)
 	WI_initDeathmatchStats();
