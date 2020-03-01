@@ -1741,7 +1741,6 @@ void G_DoNewGame (void)
     fastparm = false;
     nomonsters = false;
     consoleplayer = 0;
-    X_InitLog();
     G_InitNew (d_skill, d_episode, d_map); 
     gameaction = ga_nothing; 
 } 
@@ -1907,6 +1906,19 @@ G_InitNew
         skytexture = R_TextureNumForName(skytexturename);
     }
 
+    // Called only once during new mission start
+    if (X_InitLog(d_episode, d_map) == -1)
+    {
+        // Try cycling the log, might have been used by demo mode
+        if (X_CloseLog() == 0)
+        {
+            // Last chance at love, hard failure if this doesn't work
+            if (X_InitLog(d_episode, d_map) < 0)
+            {
+                I_Error("Something wrong...cannot init log!");
+            }
+        }
+    }
     G_DoLoadLevel ();
 }
 

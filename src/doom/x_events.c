@@ -19,9 +19,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <sys/stat.h>
 #include "x_events.h"
 
 #include "i_system.h"
+#include "m_misc.h"
 #include "r_defs.h"
 #include "r_main.h"
 
@@ -38,7 +40,7 @@ int log_fd = -1;
 
 
 // Convert an event type enum into a string representation
-const char* eventTypeName(xeventtype_t ev) 
+const char* eventTypeName(xeventtype_t ev)
 {
     switch (ev) {
         case e_start_level:
@@ -120,7 +122,7 @@ void logEvent(xevent_t *ev)
         {
             cJSON_AddStringToObject(json, "actor", "player");
             cJSON_AddNumberToObject(json, "actorId", (uintptr_t) ev->actor);
-        } else 
+        } else
         {
             cJSON_AddStringToObject(json, "actor", enemyTypeName(ev->actor));
             cJSON_AddNumberToObject(json, "actorId", (uintptr_t) ev->actor);
@@ -139,7 +141,7 @@ void logEvent(xevent_t *ev)
             cJSON_AddNumberToObject(json, "targetId", (uintptr_t) ev->target);
         }
     }
-    
+
     if (cJSON_PrintPreallocated(json, jsonbuf, JSON_BUFFER_LEN, false))
     {
         write(log_fd, jsonbuf, JSON_BUFFER_LEN);
@@ -156,36 +158,43 @@ void logEvent(xevent_t *ev)
 
 // Initialize event logging framework.
 // Should only be called once!
-int X_InitLog()
+int X_InitLog(int episode, int map)
 {
     time_t t;
     char* filename;
 
+    printf("XXX: X_InitLog(%d, %d) called\n", episode, map);
+
     // Don't init twice
     if (log_fd > -1)
     {
-        I_Error("event logfile is already opened!");
+        printf("XXX: event logfile is already opened!\n");
         return -1;
     }
-    
+
     // xxx: danger danger we gon cray cray
     t = time(NULL);
     filename = malloc(MAX_FILENAME_LEN);
     if (filename == NULL)
     {
         I_Error("failed to malloc room for filename");
-        return -2;
     }
-    
+
     // blind cast to int for now...who cares?
-    snprintf(filename, MAX_FILENAME_LEN, "doom-%d.log", (int) t);
+    M_snprintf(filename, MAX_FILENAME_LEN, "doom-e%dm%d-%d.log", episode, map, (int) t);
     log_fd = open(filename, O_WRONLY | O_APPEND | O_CREAT);
     free(filename);
 
-    if (log_fd < 0) 
+#ifndef _WIN32
+    if (fchmod(log_fd, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) != 0)
+    {
+        I_Error("couldn't chmod log file!");
+    }
+#endif
+
+    if (log_fd < 0)
     {
         I_Error("failed to open logfile!");
-        return -3;
     }
 
     // initialize json write buffer
@@ -193,7 +202,6 @@ int X_InitLog()
     if (jsonbuf == NULL)
     {
         I_Error("failed to allocate space for json buffer");
-        return -4;
     }
 
     return 0;
@@ -204,17 +212,22 @@ int X_CloseLog()
 {
     int r = 0;
 
+    printf("XXX: X_CloseLog() called\n");
+
     if (close(log_fd) != 0)
     {
         I_Error("failed to close doom log file");
         r = -1;
     }
 
+    log_fd = -1;
+
     if (jsonbuf != NULL) {
         free(jsonbuf);
+	jsonbuf = NULL;
     } else {
-        I_Error("json buffer not allocated?!");
-        r = -2;
+        printf("XXX: json buffer not allocated?!\n");
+        r = r - 2;
     }
 
     return r;
@@ -296,7 +309,7 @@ void X_LogHit(mobj_t *source, mobj_t *target, int damage)
 
 void X_LogSectorCrossing(mobj_t *actor)
 {
-    xevent_t ev = { e_entered_subsector, actor, NULL };    
+    xevent_t ev = { e_entered_subsector, actor, NULL };
     logEvent(&ev);
 }
 

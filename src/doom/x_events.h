@@ -40,7 +40,7 @@ typedef enum
 } xeventtype_t;
 
 typedef struct xevent_s
-{   
+{
     // Type of event we're recording
     xeventtype_t     ev_type;
 
@@ -48,12 +48,12 @@ typedef struct xevent_s
     // (depending on type of event)
     mobj_t*         actor;
 
-    // Moveable object that's the target 
+    // Moveable object that's the target
     // (optional, may be NULL)
     mobj_t*         target;
 } xevent_t;
 
-int X_InitLog();
+int X_InitLog(int episode, int map);
 int X_CloseLog();
 
 void X_LogStart(int ep, int level, skill_t mode);
