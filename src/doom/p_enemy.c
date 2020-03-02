@@ -319,6 +319,9 @@ boolean P_Move (mobj_t*	actor)
 	    if (P_UseSpecialLine (actor, ld,0))
 		good = true;
 	}
+        if (good)
+            X_LogMove(actor);
+
 	return good;
     }
     else
@@ -326,7 +329,8 @@ boolean P_Move (mobj_t*	actor)
 	actor->flags &= ~MF_INFLOAT;
     }
 	
-	
+    X_LogMove(actor);
+
     if (! (actor->flags & MF_FLOAT) )	
 	actor->z = actor->floorz;
     return true; 

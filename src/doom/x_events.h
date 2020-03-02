@@ -18,6 +18,9 @@
 #ifndef __X_EVENTS__
 #define __X_EVENTS__
 
+// toggle to turn on very very very verbose movement logging
+#define X_LOG_MOVEMENT 0
+
 #include "doomdef.h"
 #include "m_fixed.h"
 #include "p_mobj.h"
@@ -32,6 +35,7 @@ typedef enum
     e_attack,
     e_counterattack,
     e_hit,
+    e_move,
     e_pickup_weapon,
     e_pickup_health,
     e_pickup_armor,
@@ -59,12 +63,13 @@ int X_CloseLog();
 void X_LogStart(int ep, int level, skill_t mode);
 void X_LogExit();
 
-void X_LogPosition(mobj_t *actor);
+void X_LogMove(mobj_t *actor);
 
 void X_LogEnemyKilled(mobj_t *victim);
 void X_LogPlayerDied(mobj_t *killer);
 
 void X_LogTargeted(mobj_t *actor, mobj_t *target);
+void X_LogPlayerAttack(mobj_t *player, weapontype_t weapon);
 void X_LogAttack(mobj_t *source, mobj_t *target);
 void X_LogCounterAttack(mobj_t *enemy, mobj_t *target);
 void X_LogHit(mobj_t *source, mobj_t *target, int damage);

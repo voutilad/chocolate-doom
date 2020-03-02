@@ -67,6 +67,8 @@ const char* eventTypeName(xeventtype_t ev)
             return "ENTER_SECTOR";
         case e_entered_subsector:
             return "ENTER_SUBSECTOR";
+        case e_move:
+            return "MOVE";
     }
     return "UNKNOWN_EVENT";
 }
@@ -101,16 +103,20 @@ subsector_t* guessActorLocation(mobj_t *actor)
     return R_PointInSubsector(actor->x, actor->y);
 }
 
-// This should be the one call to rule them all
-void logEvent(xevent_t *ev)
+void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
 {
-    cJSON* json;
+    cJSON* json = NULL;
+    cJSON* pos = NULL;
 
     json = cJSON_CreateObject();
     if (json == NULL)
     {
         I_Error("unable to create JSON object?!");
-        return;
+    }
+
+    if (key != NULL && extra != NULL)
+    {
+        cJSON_AddItemToObject(json, key, extra);
     }
 
     cJSON_AddStringToObject(json, "type", eventTypeName(ev->ev_type));
@@ -118,6 +124,17 @@ void logEvent(xevent_t *ev)
 
     if (ev->actor != NULL)
     {
+        pos = cJSON_CreateObject();
+        if (pos == NULL)
+        {
+            I_Error("unable to create position JSON object?!");
+        }
+        cJSON_AddNumberToObject(pos, "x", ev->actor->x);
+        cJSON_AddNumberToObject(pos, "y", ev->actor->y);
+        cJSON_AddNumberToObject(pos, "z", ev->actor->z);
+        cJSON_AddNumberToObject(pos, "subsector", (uintptr_t) guessActorLocation(ev->actor));
+        cJSON_AddItemToObject(json, "position", pos);
+
         if (ev->actor->player)
         {
             cJSON_AddStringToObject(json, "actor", "player");
@@ -147,11 +164,21 @@ void logEvent(xevent_t *ev)
         write(log_fd, jsonbuf, JSON_BUFFER_LEN);
         write(log_fd, "\n", 1);
         memset(jsonbuf, 0, JSON_BUFFER_LEN);
-    } else
+    } 
+    else
     {
         I_Error("failed to write event to log!");
     }
-    cJSON_free(json);
+
+    if (json == NULL)
+    {
+        cJSON_free(json);
+    }
+}
+
+void logEvent(xevent_t *ev)
+{
+    logEventWithExtra(ev, NULL, NULL);
 }
 
 ////////
@@ -217,7 +244,6 @@ int X_CloseLog()
     if (close(log_fd) != 0)
     {
         I_Error("failed to close doom log file");
-        r = -1;
     }
 
     log_fd = -1;
@@ -248,9 +274,12 @@ void X_LogExit()
     logEvent(&ev);
 }
 
-void X_LogPosition(mobj_t *actor)
+void X_LogMove(mobj_t *actor)
 {
-
+#if X_LOG_MOVEMENT
+    xevent_t ev = { e_move, actor, NULL };
+    logEvent(&ev);
+#endif
 }
 
 ///////////////
@@ -271,38 +300,32 @@ void X_LogPlayerDied(mobj_t *killer)
 
 void X_LogTargeted(mobj_t *actor, mobj_t *target)
 {
-    xevent_t ev;
-    ev.ev_type = e_targeted;
-    ev.actor = actor;
-    ev.target = target;
+    xevent_t ev = { e_targeted, actor, target };
     logEvent(&ev);
+}
+
+void X_LogPlayerAttack(mobj_t *player, weapontype_t weapon)
+{
+    xevent_t ev = { e_attack, player, NULL };
+    logEventWithExtra(&ev, "weaponType", cJSON_CreateNumber(weapon));
 }
 
 void X_LogAttack(mobj_t *source, mobj_t *target)
 {
-    xevent_t ev;
-    ev.ev_type = e_attack;
-    ev.actor = source;
-    ev.target = target;
+    xevent_t ev = { e_attack, source, target };
     logEvent(&ev);
 }
 
 void X_LogCounterAttack(mobj_t *enemy, mobj_t *target)
 {
-    xevent_t ev;
-    ev.ev_type = e_counterattack;
-    ev.actor = enemy;
-    ev.target = target;
+    xevent_t ev = { e_counterattack, enemy, target };
     logEvent(&ev);
 }
 
 void X_LogHit(mobj_t *source, mobj_t *target, int damage)
 {
-    xevent_t ev;
-    ev.ev_type = e_hit;
-    ev.actor = source;
-    ev.target = target;
-    logEvent(&ev);
+    xevent_t ev = { e_hit, source, target };
+    logEventWithExtra(&ev, "damage", cJSON_CreateNumber(damage));
 }
 
 ////
@@ -318,11 +341,11 @@ void X_LogSectorCrossing(mobj_t *actor)
 void X_LogArmorPickup(int armortype)
 {
     xevent_t ev = { e_pickup_armor, NULL, NULL };
-    logEvent(&ev);
+    logEventWithExtra(&ev, "armorType", cJSON_CreateNumber(armortype));
 }
 
 void X_LogWeaponPickup(weapontype_t weapon)
 {
     xevent_t ev = { e_pickup_weapon, NULL, NULL };
-    logEvent(&ev);
+    logEventWithExtra(&ev, "weaponType", cJSON_CreateNumber(weapon));
 }

@@ -30,6 +30,8 @@
 
 #include "deh_main.h"
 
+#include "x_events.h"
+
 // Index of the special effects (INVUL inverse) map.
 #define INVERSECOLORMAP		32
 
@@ -161,6 +163,8 @@ void P_MovePlayer (player_t* player)
     {
 	P_SetMobjState (player->mo, S_PLAY_RUN1);
     }
+
+    X_LogMove(player->mo);
 }	
 
 
