@@ -27,6 +27,8 @@
 #include "p_local.h"
 #include "s_sound.h"
 
+#include "x_events.h"
+
 // State.
 #include "doomstat.h"
 
@@ -245,6 +247,7 @@ void P_FireWeapon (player_t* player)
     newstate = weaponinfo[player->readyweapon].atkstate;
     P_SetPsprite (player, ps_weapon, newstate);
     P_NoiseAlert (player->mo, player->mo);
+    X_LogPlayerAttack(player->mo, player->readyweapon);
 }
 
 
