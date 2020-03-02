@@ -29,7 +29,7 @@
 char* jsonbuf = NULL;
 
 // reference to event log file
-int log_fd = -1;
+static int log_fd = -1;
 
 
 // Convert an event type enum into a string representation
@@ -172,7 +172,7 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
         I_Error("failed to write event to log!");
     }
 
-    if (json == NULL)
+    if (json != NULL)
     {
         cJSON_free(json);
     }
@@ -266,8 +266,18 @@ int X_CloseLog()
 
 void X_LogStart(int ep, int level, skill_t mode)
 {
+    cJSON *json = cJSON_CreateObject();
+    if (!json)
+    {
+        I_Error("failed to instantiate level json metadata!");
+    }
+    cJSON_AddNumberToObject(json, "episode", ep);
+    cJSON_AddNumberToObject(json, "level", level);
+    cJSON_AddNumberToObject(json, "difficulty", mode);
+
     xevent_t ev = { e_start_level, NULL, NULL };
-    logEvent(&ev);
+    logEventWithExtra(&ev, "level", json);
+    cJSON_Delete(json);
 }
 
 void X_LogExit()
@@ -342,12 +352,16 @@ void X_LogSectorCrossing(mobj_t *actor)
 
 void X_LogArmorPickup(int armortype)
 {
+    cJSON *type = cJSON_CreateNumber(armortype);
     xevent_t ev = { e_pickup_armor, NULL, NULL };
-    logEventWithExtra(&ev, "armorType", cJSON_CreateNumber(armortype));
+    logEventWithExtra(&ev, "armorType", type);
+    cJSON_Delete(type);
 }
 
 void X_LogWeaponPickup(weapontype_t weapon)
 {
+    cJSON *w = cJSON_CreateNumber(weapon);
     xevent_t ev = { e_pickup_weapon, NULL, NULL };
-    logEventWithExtra(&ev, "weaponType", cJSON_CreateNumber(weapon));
+    logEventWithExtra(&ev, "weaponType", w);
+    cJSON_Delete(w);
 }
