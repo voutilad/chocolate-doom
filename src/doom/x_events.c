@@ -22,13 +22,6 @@
 #include <sys/stat.h>
 #include "x_events.h"
 
-#include "i_system.h"
-#include "m_misc.h"
-#include "r_defs.h"
-#include "r_main.h"
-
-#include "cJSON.h"
-
 #define MAX_FILENAME_LEN 128
 #define JSON_BUFFER_LEN 4096
 
@@ -97,10 +90,19 @@ const char* enemyTypeName(mobj_t* enemy) {
     }
 }
 
+#ifdef TEST
+sector_t test_sector = {};
+subsector_t test_subsector = { &test_sector, 0, 0 };
+#endif
+
 // Try to determine the location of an Actor
 subsector_t* guessActorLocation(mobj_t *actor)
 {
+#ifdef TEST
+    return &test_subsector;
+#else
     return R_PointInSubsector(actor->x, actor->y);
+#endif
 }
 
 void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)

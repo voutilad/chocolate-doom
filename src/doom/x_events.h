@@ -25,6 +25,12 @@
 #include "m_fixed.h"
 #include "p_mobj.h"
 #include "d_player.h"
+#include "i_system.h"
+#include "m_misc.h"
+#include "r_defs.h"
+#include "r_main.h"
+
+#include "cJSON.h"
 
 typedef enum
 {
