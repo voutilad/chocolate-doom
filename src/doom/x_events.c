@@ -174,7 +174,7 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
 
     if (json != NULL)
     {
-        cJSON_free(json);
+        cJSON_Delete(json);
     }
 }
 
