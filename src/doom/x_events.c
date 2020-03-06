@@ -23,7 +23,9 @@
 #include "x_events.h"
 
 #define MAX_FILENAME_LEN 128
-#define JSON_BUFFER_LEN 4096
+
+// Maximal size of our serialized JSON, picked to be < the typical MTU setting
+#define JSON_BUFFER_LEN 1024
 
 // Used to prevent constant malloc when printing json
 char* jsonbuf = NULL;
@@ -108,6 +110,7 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
 {
     cJSON* json = NULL;
     cJSON* pos = NULL;
+    size_t buflen = 0;
 
     json = cJSON_CreateObject();
     if (json == NULL)
@@ -118,7 +121,8 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
     if (key != NULL && extra != NULL)
     {
         // XXX: The "extra" metadata is added as a reference so we don't
-        // transfer ownership.
+        // transfer ownership, avoiding possible double-free's in functions
+        // calling logEventWithExtra()
         cJSON_AddItemReferenceToObject(json, key, extra);
     }
 
@@ -165,7 +169,8 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
 
     if (cJSON_PrintPreallocated(json, jsonbuf, JSON_BUFFER_LEN, false))
     {
-        write(log_fd, jsonbuf, JSON_BUFFER_LEN);
+        buflen = strlen(jsonbuf);
+        write(log_fd, jsonbuf, buflen);
         write(log_fd, "\n", 1);
         memset(jsonbuf, 0, JSON_BUFFER_LEN);
     }
