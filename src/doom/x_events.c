@@ -68,7 +68,6 @@ const char* eventTypeName(xeventtype_t ev)
 
 // Convert a mobj type into an enemy name string
 const char* enemyTypeName(mobj_t* enemy) {
-    // printf("XXX enemy type: %d\n", enemy->type);
     switch (enemy->type)
     {
         case MT_POSSESSED:
@@ -118,7 +117,9 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
 
     if (key != NULL && extra != NULL)
     {
-        cJSON_AddItemToObject(json, key, extra);
+        // XXX: The "extra" metadata is added as a reference so we don't
+        // transfer ownership.
+        cJSON_AddItemReferenceToObject(json, key, extra);
     }
 
     cJSON_AddStringToObject(json, "type", eventTypeName(ev->ev_type));
@@ -134,7 +135,8 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
         cJSON_AddNumberToObject(pos, "x", ev->actor->x);
         cJSON_AddNumberToObject(pos, "y", ev->actor->y);
         cJSON_AddNumberToObject(pos, "z", ev->actor->z);
-        cJSON_AddNumberToObject(pos, "subsector", (uintptr_t) guessActorLocation(ev->actor));
+        cJSON_AddNumberToObject(pos, "subsector",
+                                (uintptr_t) guessActorLocation(ev->actor));
         cJSON_AddItemToObject(json, "position", pos);
 
         if (ev->actor->player)
@@ -166,7 +168,7 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
         write(log_fd, jsonbuf, JSON_BUFFER_LEN);
         write(log_fd, "\n", 1);
         memset(jsonbuf, 0, JSON_BUFFER_LEN);
-    } 
+    }
     else
     {
         I_Error("failed to write event to log!");
@@ -210,7 +212,8 @@ int X_InitLog(int episode, int map)
     }
 
     // blind cast to int for now...who cares?
-    M_snprintf(filename, MAX_FILENAME_LEN, "doom-e%dm%d-%d.log", episode, map, (int) t);
+    M_snprintf(filename, MAX_FILENAME_LEN, "doom-e%dm%d-%d.log",
+               episode, map, (int) t);
     log_fd = open(filename, O_WRONLY | O_APPEND | O_CREAT);
     free(filename);
 
