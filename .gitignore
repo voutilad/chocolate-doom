@@ -65,3 +65,4 @@ GTAGS
 *.log
 test_events
 
+/src/test_events.dSYM/
