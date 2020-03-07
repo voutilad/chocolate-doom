@@ -42,6 +42,9 @@ typedef enum
     e_pickup_weapon,
     e_pickup_health,
     e_pickup_armor,
+    e_pickup_card,
+    e_health_bonus,
+    e_armor_bonus,
     e_entered_sector,
     e_entered_subsector
 } xeventtype_t;
@@ -66,7 +69,7 @@ int X_CloseLog();
 void X_LogStart(int ep, int level, skill_t mode);
 void X_LogExit(mobj_t *actor);
 
-void X_LogPlayerMove(mobj_t *actor, angle_t angle);
+void X_LogPlayerMove(mobj_t *actor);
 void X_LogEnemyMove(mobj_t *actor);
 
 void X_LogEnemyKilled(mobj_t *victim);
@@ -80,7 +83,13 @@ void X_LogHit(mobj_t *source, mobj_t *target, int damage);
 
 void X_LogSectorCrossing(mobj_t *actor);
 
+void X_LogHealthBonus(player_t *player);
+void X_LogArmorBonus(player_t *player);
+
+void X_LogHealthPickup(player_t *player, int amount);
 void X_LogArmorPickup(mobj_t *actor, int armortype);
 void X_LogWeaponPickup(mobj_t *actor, weapontype_t weapon);
+void X_LogCardPickup(player_t *player, card_t card);
+
 
 #endif

@@ -58,6 +58,12 @@ const char* eventTypeName(xeventtype_t ev)
             return "PICKUP_HEALTH";
         case e_pickup_weapon:
             return "PICKUP_WEAPON";
+    case e_pickup_card:
+        return "PICKUP_CARD";
+    case e_armor_bonus:
+        return "ARMOR_BONUS";
+    case e_health_bonus:
+        return "HEALTH_BONUS";
         case e_entered_sector:
             return "ENTER_SECTOR";
         case e_entered_subsector:
@@ -294,17 +300,20 @@ void X_LogExit(mobj_t *actor)
     logEvent(&ev);
 }
 
-void X_LogPlayerMove(mobj_t *player, angle_t angle)
+void X_LogPlayerMove(mobj_t *player)
 {
-    cJSON *n = cJSON_CreateNumber(angle);
+    cJSON *angle = cJSON_CreateNumber(player->angle);
     xevent_t ev = { e_move, player, NULL };
-    logEventWithExtra(&ev, "angle", n);
-    cJSON_Delete(n);
+    logEventWithExtra(&ev, "angle", angle);
+    cJSON_Delete(angle);
 }
 
 void X_LogEnemyMove(mobj_t *enemy)
 {
-    // nop
+    cJSON *angle = cJSON_CreateNumber(enemy->angle);
+    xevent_t ev = { e_move, enemy, NULL };
+    logEventWithExtra(&ev, "angle", angle);
+    cJSON_Delete(angle);
 }
 
 ///////////////
@@ -363,6 +372,30 @@ void X_LogSectorCrossing(mobj_t *actor)
 
 ////
 
+void X_LogArmorBonus(player_t *player)
+{
+    cJSON *armor = cJSON_CreateNumber(player->armorpoints);
+    xevent_t ev = { e_armor_bonus, player->mo, NULL };
+    logEventWithExtra(&ev, "armor", armor);
+    cJSON_Delete(armor);
+}
+
+void X_LogHealthBonus(player_t *player)
+{
+    cJSON *health = cJSON_CreateNumber(player->health);
+    xevent_t ev = { e_health_bonus, player->mo, NULL };
+    logEventWithExtra(&ev, "health", health);
+    cJSON_Delete(health);
+}
+
+void X_LogHealthPickup(player_t *player, int amount)
+{
+    cJSON *health = cJSON_CreateNumber(amount);
+    xevent_t ev = { e_pickup_health, player->mo, NULL };
+    logEventWithExtra(&ev, "health", health);
+    cJSON_Delete(health);
+}
+
 void X_LogArmorPickup(mobj_t *actor, int armortype)
 {
     cJSON *type = cJSON_CreateNumber(armortype);
@@ -377,4 +410,13 @@ void X_LogWeaponPickup(mobj_t *actor, weapontype_t weapon)
     xevent_t ev = { e_pickup_weapon, actor, NULL };
     logEventWithExtra(&ev, "weaponType", w);
     cJSON_Delete(w);
+}
+
+void X_LogCardPickup(player_t *player, card_t card)
+{
+    // xxx: card_t is an enum, we should resolve it in the future
+    cJSON *c = cJSON_CreateNumber(card);
+    xevent_t ev = { e_pickup_card, player->mo, NULL };
+    logEventWithExtra(&ev, "card", c);
+    cJSON_Delete(c);
 }
