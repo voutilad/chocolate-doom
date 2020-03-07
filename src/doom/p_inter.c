@@ -205,7 +205,7 @@ P_GiveWeapon
     else
     {
 	gaveweapon = true;
-	X_LogWeaponPickup(weapon);
+	X_LogWeaponPickup(player->mo, weapon);
 	player->weaponowned[weapon] = true;
 	player->pendingweapon = weapon;
     }
@@ -256,7 +256,7 @@ P_GiveArmor
     player->armortype = armortype;
     player->armorpoints = hits;
 	
-	X_LogArmorPickup(armortype);
+    X_LogArmorPickup(player->mo, armortype);
     return true;
 }
 
@@ -941,4 +941,3 @@ P_DamageMobj
     }
 			
 }
-

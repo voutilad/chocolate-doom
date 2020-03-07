@@ -18,9 +18,6 @@
 #ifndef __X_EVENTS__
 #define __X_EVENTS__
 
-// toggle to turn on very very very verbose movement logging
-#define X_LOG_MOVEMENT 0
-
 #include "doomdef.h"
 #include "m_fixed.h"
 #include "p_mobj.h"
@@ -67,9 +64,10 @@ int X_InitLog(int episode, int map);
 int X_CloseLog();
 
 void X_LogStart(int ep, int level, skill_t mode);
-void X_LogExit();
+void X_LogExit(mobj_t *actor);
 
-void X_LogMove(mobj_t *actor);
+void X_LogPlayerMove(mobj_t *actor, angle_t angle);
+void X_LogEnemyMove(mobj_t *actor);
 
 void X_LogEnemyKilled(mobj_t *victim);
 void X_LogPlayerDied(mobj_t *killer);
@@ -82,7 +80,7 @@ void X_LogHit(mobj_t *source, mobj_t *target, int damage);
 
 void X_LogSectorCrossing(mobj_t *actor);
 
-void X_LogArmorPickup(int armortype);
-void X_LogWeaponPickup(weapontype_t weapon);
+void X_LogArmorPickup(mobj_t *actor, int armortype);
+void X_LogWeaponPickup(mobj_t *actor, weapontype_t weapon);
 
 #endif

@@ -41,6 +41,8 @@
 
 #include "s_sound.h"
 
+#include "x_events.h"
+
 // State.
 #include "r_state.h"
 
@@ -699,6 +701,7 @@ P_CrossSpecialLine
       case 52:
 	// EXIT!
 	G_ExitLevel ();
+        X_LogExit(thing);
 	break;
 	
       case 53:
@@ -782,6 +785,7 @@ P_CrossSpecialLine
       case 124:
 	// Secret EXIT
 	G_SecretExitLevel ();
+        X_LogExit(thing);
 	break;
 		
       case 125:

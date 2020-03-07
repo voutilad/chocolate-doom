@@ -60,6 +60,8 @@ P_Thrust
     
     player->mo->momx += FixedMul(move,finecosine[angle]); 
     player->mo->momy += FixedMul(move,finesine[angle]);
+
+    X_LogPlayerMove(player->mo, angle);
 }
 
 
@@ -163,8 +165,6 @@ void P_MovePlayer (player_t* player)
     {
 	P_SetMobjState (player->mo, S_PLAY_RUN1);
     }
-
-    X_LogMove(player->mo);
 }	
 
 
@@ -379,5 +379,3 @@ void P_PlayerThink (player_t* player)
     else
 	player->fixedcolormap = 0;
 }
-
-
