@@ -31,6 +31,8 @@
 
 #include "s_sound.h"
 
+#include "x_events.h"
+
 #include "doomstat.h"
 
 
@@ -196,6 +198,12 @@ void P_XYMovement (mobj_t* mo)
 	}
     } while (xmove || ymove);
     
+    // TODO: This is super chatty...at least for players...due to momentum.
+    if (player)
+        X_LogPlayerMove(mo);
+    else
+        X_LogEnemyMove(mo);
+
     // slow down
     if (player && player->cheats & CF_NOMOMENTUM)
     {
@@ -1066,4 +1074,3 @@ P_SpawnPlayerMissile
 
     P_CheckMissileSpawn (th);
 }
-

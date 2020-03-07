@@ -232,6 +232,8 @@ P_GiveBody
 	player->health = MAXHEALTH;
     player->mo->health = player->health;
 	
+    X_LogHealthPickup(player, num);
+
     return true;
 }
 
@@ -275,6 +277,8 @@ P_GiveCard
     
     player->bonuscount = BONUSADD;
     player->cards[card] = 1;
+
+    X_LogCardPickup(player, card);
 }
 
 
@@ -381,6 +385,7 @@ P_TouchSpecialThing
 	    player->health = deh_max_health;
 	player->mo->health = player->health;
 	player->message = DEH_String(GOTHTHBONUS);
+        X_LogHealthBonus(player);
 	break;
 	
       case SPR_BON2:
@@ -392,6 +397,7 @@ P_TouchSpecialThing
 	if (!player->armortype)
 	    player->armortype = 1;
 	player->message = DEH_String(GOTARMBONUS);
+        X_LogArmorBonus(player);
 	break;
 	
       case SPR_SOUL:
