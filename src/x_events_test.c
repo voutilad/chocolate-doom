@@ -38,7 +38,7 @@ int main()
     X_LogStart(69, 69, 1);
     X_LogArmorPickup(69);
     X_LogWeaponPickup(wp_shotgun);
-
+    X_LogMove(&m1);
     X_LogTargeted(&m1, &m2);
     X_LogEnemyKilled(&m1);
     X_LogMove(&m1);

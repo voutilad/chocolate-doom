@@ -288,18 +288,23 @@ void X_LogStart(int ep, int level, skill_t mode)
     cJSON_Delete(json);
 }
 
-void X_LogExit()
+void X_LogExit(mobj_t *actor)
 {
-    xevent_t ev = { e_end_level, NULL, NULL };
+    xevent_t ev = { e_end_level, actor, NULL };
     logEvent(&ev);
 }
 
-void X_LogMove(mobj_t *actor)
+void X_LogPlayerMove(mobj_t *player, angle_t angle)
 {
-#if X_LOG_MOVEMENT
-    xevent_t ev = { e_move, actor, NULL };
-    logEvent(&ev);
-#endif
+    cJSON *n = cJSON_CreateNumber(angle);
+    xevent_t ev = { e_move, player, NULL };
+    logEventWithExtra(&ev, "angle", n);
+    cJSON_Delete(n);
+}
+
+void X_LogEnemyMove(mobj_t *enemy)
+{
+    // nop
 }
 
 ///////////////
@@ -358,18 +363,18 @@ void X_LogSectorCrossing(mobj_t *actor)
 
 ////
 
-void X_LogArmorPickup(int armortype)
+void X_LogArmorPickup(mobj_t *actor, int armortype)
 {
     cJSON *type = cJSON_CreateNumber(armortype);
-    xevent_t ev = { e_pickup_armor, NULL, NULL };
+    xevent_t ev = { e_pickup_armor, actor, NULL };
     logEventWithExtra(&ev, "armorType", type);
     cJSON_Delete(type);
 }
 
-void X_LogWeaponPickup(weapontype_t weapon)
+void X_LogWeaponPickup(mobj_t *actor, weapontype_t weapon)
 {
     cJSON *w = cJSON_CreateNumber(weapon);
-    xevent_t ev = { e_pickup_weapon, NULL, NULL };
+    xevent_t ev = { e_pickup_weapon, actor, NULL };
     logEventWithExtra(&ev, "weaponType", w);
     cJSON_Delete(w);
 }

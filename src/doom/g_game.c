@@ -1334,7 +1334,6 @@ void G_ExitLevel (void)
 { 
     secretexit = false; 
     gameaction = ga_completed;
-    X_LogExit();
 } 
 
 // Here's for the german edition.
@@ -2355,6 +2354,3 @@ boolean G_CheckDemoStatus (void)
 	 
     return false; 
 } 
- 
- 
- 
