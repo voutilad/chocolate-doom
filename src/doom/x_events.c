@@ -38,38 +38,38 @@ static int log_fd = -1;
 const char* eventTypeName(xeventtype_t ev)
 {
     switch (ev) {
-        case e_start_level:
-            return "START_LEVEL";
-        case e_end_level:
-            return "END_LEVEL";
-        case e_targeted:
-            return "TARGETED";
-        case e_killed:
-            return "KILLED";
-        case e_attack:
-            return "ATTACKED";
-        case e_counterattack:
-            return "COUNTERATTACKED";
-        case e_hit:
-            return "HIT";
-        case e_pickup_armor:
-            return "PICKUP_ARMOR";
-        case e_pickup_health:
-            return "PICKUP_HEALTH";
-        case e_pickup_weapon:
-            return "PICKUP_WEAPON";
+    case e_start_level:
+        return "START_LEVEL";
+    case e_end_level:
+        return "END_LEVEL";
+    case e_targeted:
+        return "TARGETED";
+    case e_killed:
+        return "KILLED";
+    case e_attack:
+        return "ATTACKED";
+    case e_counterattack:
+        return "COUNTERATTACKED";
+    case e_hit:
+        return "HIT";
+    case e_pickup_armor:
+        return "PICKUP_ARMOR";
+    case e_pickup_health:
+        return "PICKUP_HEALTH";
+    case e_pickup_weapon:
+        return "PICKUP_WEAPON";
     case e_pickup_card:
         return "PICKUP_CARD";
     case e_armor_bonus:
         return "ARMOR_BONUS";
     case e_health_bonus:
         return "HEALTH_BONUS";
-        case e_entered_sector:
-            return "ENTER_SECTOR";
-        case e_entered_subsector:
-            return "ENTER_SUBSECTOR";
-        case e_move:
-            return "MOVE";
+    case e_entered_sector:
+        return "ENTER_SECTOR";
+    case e_entered_subsector:
+        return "ENTER_SUBSECTOR";
+    case e_move:
+        return "MOVE";
     }
     return "UNKNOWN_EVENT";
 }
@@ -78,22 +78,22 @@ const char* eventTypeName(xeventtype_t ev)
 const char* enemyTypeName(mobj_t* enemy) {
     switch (enemy->type)
     {
-        case MT_POSSESSED:
-            return "Soldier";
-        case MT_SHOTGUY:
-            return "ShotgunSoldier";
-        case MT_VILE:
-            return "Vile";
-        case MT_TROOP:
-            return "Imp";
-        case MT_UNDEAD:
-            return "Undead";
-        case MT_SKULL:
-            return "LostSoul";
-        case MT_BARREL:
-            return "Barrel";
-        default:
-            return "UNKNOWN_ENEMY";
+    case MT_POSSESSED:
+        return "Soldier";
+    case MT_SHOTGUY:
+        return "ShotgunSoldier";
+    case MT_VILE:
+        return "Vile";
+    case MT_TROOP:
+        return "Imp";
+    case MT_UNDEAD:
+        return "Undead";
+    case MT_SKULL:
+        return "LostSoul";
+    case MT_BARREL:
+        return "Barrel";
+    default:
+        return "UNKNOWN_ENEMY";
     }
 }
 
