@@ -16,12 +16,13 @@
 //
 
 #include <stdio.h>
-#include "p_mobj.h"
-#include "x_events.h"
+#include "doom/p_mobj.h"
+#include "doom/x_events.h"
 
 int main()
 {
-    mobj_t m1, m2;
+    player_t p;
+    mobj_t m1, m2, mp;
     m1.x = 10;
     m1.y = 20;
     m1.z = 0;
@@ -31,17 +32,26 @@ int main()
     m2.z = 1;
     m2.type = MT_BARREL;
 
+    mp.x = 12;
+    mp.y = 13;
+    mp.z = 0;
+    mp.player = &p;
+    p.mo = &mp;
+
+
     if (X_InitLog(69, 69) != 0) {
         printf("failed to init log\n");
         return -1;
     }
     X_LogStart(69, 69, 1);
-    X_LogArmorPickup(69);
-    X_LogWeaponPickup(wp_shotgun);
-    X_LogMove(&m1);
+    X_LogArmorPickup(p.mo, 69);
+    X_LogWeaponPickup(p.mo, wp_shotgun);
+    X_LogEnemyMove(&m1);
     X_LogTargeted(&m1, &m2);
     X_LogEnemyKilled(&m1);
-    X_LogMove(&m1);
+
+    X_LogPlayerMove(p.mo);
+
     X_LogPlayerDied(&m1);
     X_CloseLog();
     return 0;
