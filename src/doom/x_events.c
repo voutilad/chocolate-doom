@@ -136,6 +136,9 @@ subsector_t* guessActorLocation(mobj_t *actor)
 void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
 {
     cJSON* json = NULL;
+    cJSON* actor = NULL;
+    cJSON* frame = NULL;
+    cJSON* target = NULL;
     cJSON* pos = NULL;
     size_t buflen = 0;
 
@@ -154,49 +157,67 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
     }
 
     cJSON_AddStringToObject(json, "type", eventTypeName(ev->ev_type));
-    cJSON_AddNumberToObject(json, "time_ms", I_GetTimeMS());
-    cJSON_AddNumberToObject(json, "tic", I_GetTime());
+
+    frame = cJSON_CreateObject();
+    if (frame == NULL)
+    {
+        I_Error("unable to create frame JSON object?!");
+    }
+    cJSON_AddNumberToObject(frame, "millis", I_GetTimeMS());
+    cJSON_AddNumberToObject(frame, "tic", I_GetTime());
+    cJSON_AddItemToObject(json, "frame", frame);
 
     if (ev->actor != NULL)
     {
+        actor = cJSON_CreateObject();
         pos = cJSON_CreateObject();
-        if (pos == NULL)
+        if (actor == NULL || pos == NULL)
         {
-            I_Error("unable to create position JSON object?!");
+            I_Error("unable to create actor/position JSON object(s)?!");
         }
+
         cJSON_AddNumberToObject(pos, "x", ev->actor->x);
         cJSON_AddNumberToObject(pos, "y", ev->actor->y);
         cJSON_AddNumberToObject(pos, "z", ev->actor->z);
         cJSON_AddNumberToObject(pos, "subsector",
                                 (uintptr_t) guessActorLocation(ev->actor));
-        cJSON_AddItemToObject(json, "position", pos);
+        cJSON_AddItemToObject(actor, "position", pos);
 
         if (ev->actor->player)
         {
-            cJSON_AddStringToObject(json, "actor", "player");
-            cJSON_AddNumberToObject(json, "actorId", (uintptr_t) ev->actor);
+            cJSON_AddStringToObject(actor, "type", "player");
+            cJSON_AddNumberToObject(actor, "id", (uintptr_t) ev->actor);
         } else
         {
-            cJSON_AddStringToObject(json, "actor", enemyTypeName(ev->actor));
-            cJSON_AddNumberToObject(json, "actorId", (uintptr_t) ev->actor);
+            cJSON_AddStringToObject(actor, "type", enemyTypeName(ev->actor));
+            cJSON_AddNumberToObject(actor, "id", (uintptr_t) ev->actor);
         }
+        cJSON_AddItemToObject(json, "actor", actor);
     }
 
     if (ev->target != NULL)
     {
+        target = cJSON_CreateObject();
+        if (target == NULL)
+        {
+            I_Error("unable to create target JSON object?!");
+        }
+
         if (ev->target->player)
         {
-            cJSON_AddStringToObject(json, "target", "player");
-            cJSON_AddNumberToObject(json, "targetId", (uintptr_t) ev->target);
+            cJSON_AddStringToObject(target, "type", "player");
+            cJSON_AddNumberToObject(target, "id", (uintptr_t) ev->target);
         } else
         {
-            cJSON_AddStringToObject(json, "target", enemyTypeName(ev->target));
-            cJSON_AddNumberToObject(json, "targetId", (uintptr_t) ev->target);
+            cJSON_AddStringToObject(target, "type", enemyTypeName(ev->target));
+            cJSON_AddNumberToObject(target, "id", (uintptr_t) ev->target);
         }
+        cJSON_AddItemToObject(json, "target", target);
     }
 
     if (cJSON_PrintPreallocated(json, jsonbuf, JSON_BUFFER_LEN, false))
     {
+        // TODO: refactor out into log writer vs. udp network writer
         buflen = strlen(jsonbuf);
         write(log_fd, jsonbuf, buflen);
         write(log_fd, "\n", 1);
