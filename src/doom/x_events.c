@@ -71,6 +71,8 @@ const char* eventTypeName(xeventtype_t ev)
     case e_move:
         return "MOVE";
     }
+
+    printf("XXX: Unknown event type: %d\n", ev);
     return "UNKNOWN_EVENT";
 }
 
@@ -81,18 +83,37 @@ const char* enemyTypeName(mobj_t* enemy) {
     case MT_POSSESSED:
         return "Soldier";
     case MT_SHOTGUY:
-        return "ShotgunSoldier";
+        return "Shotgun Soldier";
     case MT_VILE:
         return "Vile";
+    case MT_SERGEANT:
+        return "Demon";
+    case MT_SHADOWS:
+        return "Spectre";
     case MT_TROOP:
         return "Imp";
+    case MT_TROOPSHOT:
+        return "Imp Fireball";
     case MT_UNDEAD:
         return "Undead";
     case MT_SKULL:
         return "LostSoul";
+    case MT_HEAD:
+        return "Cacodemon";
+    case MT_HEADSHOT:
+        return "Cacodemon Fireball";
+    case MT_BRUISER:
+        return "Baron of Hell";
+    case MT_BRUISERSHOT:
+        return "Baron Fireball";
     case MT_BARREL:
         return "Barrel";
+    case MT_ROCKET:
+        return "Rocket";
+    case MT_PLASMA:
+        return "Plasma";
     default:
+        printf("XXX: Unknown enemy type: %d\n", enemy->type);
         return "UNKNOWN_ENEMY";
     }
 }
@@ -134,6 +155,7 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
 
     cJSON_AddStringToObject(json, "type", eventTypeName(ev->ev_type));
     cJSON_AddNumberToObject(json, "time_ms", I_GetTimeMS());
+    cJSON_AddNumberToObject(json, "tic", I_GetTime());
 
     if (ev->actor != NULL)
     {
