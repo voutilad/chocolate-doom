@@ -20,6 +20,11 @@
 #include <string.h>
 #include <time.h>
 #include <sys/stat.h>
+
+#include "cJSON.h"
+
+#include "m_config.h"
+#include "m_fixed.h"
 #include "x_events.h"
 
 #define MAX_FILENAME_LEN 128
@@ -32,7 +37,6 @@ char* jsonbuf = NULL;
 
 // reference to event log file
 static int log_fd = -1;
-
 
 // Convert an event type enum into a string representation
 const char* eventTypeName(xeventtype_t ev)
@@ -142,6 +146,8 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
     cJSON* pos = NULL;
     size_t buflen = 0;
 
+    ASSERT_TELEMETRY_ON();
+
     json = cJSON_CreateObject();
     if (json == NULL)
     {
@@ -248,6 +254,8 @@ int X_InitLog(int episode, int map)
     time_t t;
     char* filename;
 
+    ASSERT_TELEMETRY_ON(0);
+
     printf("XXX: X_InitLog(%d, %d) called\n", episode, map);
 
     // Don't init twice
@@ -297,6 +305,8 @@ int X_InitLog(int episode, int map)
 int X_CloseLog()
 {
     int r = 0;
+
+    ASSERT_TELEMETRY_ON(0);
 
     printf("XXX: X_CloseLog() called\n");
 
@@ -462,4 +472,10 @@ void X_LogCardPickup(player_t *player, card_t card)
     xevent_t ev = { e_pickup_card, player->mo, NULL };
     logEventWithExtra(&ev, "card", c);
     cJSON_Delete(c);
+}
+
+
+void X_BindTelemetryVariables()
+{
+    M_BindIntVariable("telemetry_enabled", &telemetry_enabled);
 }

@@ -19,7 +19,6 @@
 #define __X_EVENTS__
 
 #include "doomdef.h"
-#include "m_fixed.h"
 #include "p_mobj.h"
 #include "d_player.h"
 #include "i_system.h"
@@ -27,7 +26,10 @@
 #include "r_defs.h"
 #include "r_main.h"
 
-#include "cJSON.h"
+// Config Variables
+static int telemetry_enabled = 0;
+
+#define ASSERT_TELEMETRY_ON(...) if (!telemetry_enabled) return __VA_ARGS__
 
 typedef enum
 {
@@ -64,7 +66,7 @@ typedef struct xevent_s
 } xevent_t;
 
 int X_InitLog(int episode, int map);
-int X_CloseLog();
+int X_CloseLog(void);
 
 void X_LogStart(int ep, int level, skill_t mode);
 void X_LogExit(mobj_t *actor);
@@ -91,5 +93,6 @@ void X_LogArmorPickup(mobj_t *actor, int armortype);
 void X_LogWeaponPickup(mobj_t *actor, weapontype_t weapon);
 void X_LogCardPickup(player_t *player, card_t card);
 
+void X_BindTelemetryVariables(void);
 
 #endif
