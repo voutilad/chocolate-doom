@@ -196,6 +196,7 @@ void InitBindings(void)
     BindSoundVariables();
     BindMiscVariables();
     BindMultiplayerVariables();
+    BindTelemetryVariables();
 }
 
 // Set the name of the executable program to run the game:
@@ -381,4 +382,3 @@ const iwad_t **GetIwads(void)
 {
     return iwads;
 }
-
