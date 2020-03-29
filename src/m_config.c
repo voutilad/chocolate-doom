@@ -687,6 +687,30 @@ static default_t	doom_defaults_list[] =
     //
 
     CONFIG_VARIABLE_INT(telemetry_enabled),
+
+    //!
+    // @game doom
+    //
+    // Modeswitch for telemetry logger
+    //
+
+    CONFIG_VARIABLE_INT(telemetry_mode),
+
+    //!
+    // @game doom
+    //
+    // UDP Host or IP for sending telemetry via network
+    //
+
+    CONFIG_VARIABLE_STRING(telemetry_host),
+
+    //!
+    // @game doom
+    //
+    // UDP Port for sending telemetry via network
+    //
+
+    CONFIG_VARIABLE_INT(telemetry_port),
 };
 
 static default_collection_t doom_defaults =
