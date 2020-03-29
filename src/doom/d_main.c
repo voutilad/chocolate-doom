@@ -1247,7 +1247,7 @@ void D_DoomMain (void)
                                                            | FOREGROUND_GREEN
                                                            | FOREGROUND_BLUE
                                                            | FOREGROUND_INTENSITY);
-    DEH_printf("                                Russian Doom " PACKAGE_VERSION
+    DEH_printf("                                Chocolate Doom " PACKAGE_VERSION
                "                                ");
     DEH_printf("\n");
 
