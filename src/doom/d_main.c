@@ -1498,6 +1498,28 @@ void D_DoomMain (void)
     }
 
     //!
+    // @category telemetry
+    //
+    // Enable telemetry, overriding setup config.
+    //
+    if (M_ParmExists("-telemetry") && !M_ParmExists("-notelemetry"))
+    {
+        DEH_printf("X_Events: telemetry enabled.\n");
+        M_SetVariable("telemetry_enabled", "1");
+    }
+
+    //!
+    // @category telemetry
+    //
+    // Disable telemetry, overriding setup config.
+    //
+    if (M_ParmExists("-notelemetry") && !M_ParmExists("-telemetry"))
+    {
+        DEH_printf("X_Events: telemetry disabled.\n");
+        M_SetVariable("telemetry_enabled", "0");
+    }
+
+    //!
     // @category mod
     //
     // Disable automatic loading of Dehacked patches for certain
