@@ -26,10 +26,8 @@
 #include "r_defs.h"
 #include "r_main.h"
 
-// Config Variables
-static int telemetry_enabled = 0;
-
-#define ASSERT_TELEMETRY_ON(...) if (!telemetry_enabled) return __VA_ARGS__
+#define FILE_MODE 1
+#define UDP_MODE  2
 
 typedef enum
 {
