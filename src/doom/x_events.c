@@ -32,6 +32,14 @@
 // Maximal size of our serialized JSON, picked to be < the typical MTU setting
 #define JSON_BUFFER_LEN 1024
 
+// Config Variables and related Macros
+static int telemetry_enabled = 0;
+static int telemetry_mode = FILE_MODE;
+static char *telemetry_host = "localhost";
+static int telemetry_port = 10666;
+
+#define ASSERT_TELEMETRY_ON(...) if (!telemetry_enabled) return __VA_ARGS__
+
 // Used to prevent constant malloc when printing json
 char* jsonbuf = NULL;
 
@@ -240,6 +248,17 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
     }
 }
 
+void logEventWithExtraNumber(xevent_t *ev, const char* key, int value)
+{
+    cJSON *num = cJSON_CreateNumber(value);
+    if (num == NULL)
+    {
+        I_Error("Failed to create JSON number!?!");
+    }
+    logEventWithExtra(ev, key, num);
+    cJSON_Delete(num);
+}
+
 void logEvent(xevent_t *ev)
 {
     logEventWithExtra(ev, NULL, NULL);
@@ -355,18 +374,14 @@ void X_LogExit(mobj_t *actor)
 
 void X_LogPlayerMove(mobj_t *player)
 {
-    cJSON *angle = cJSON_CreateNumber(player->angle);
     xevent_t ev = { e_move, player, NULL };
-    logEventWithExtra(&ev, "angle", angle);
-    cJSON_Delete(angle);
+    logEventWithExtraNumber(&ev, "angle", player->angle);
 }
 
 void X_LogEnemyMove(mobj_t *enemy)
 {
-    cJSON *angle = cJSON_CreateNumber(enemy->angle);
     xevent_t ev = { e_move, enemy, NULL };
-    logEventWithExtra(&ev, "angle", angle);
-    cJSON_Delete(angle);
+    logEventWithExtraNumber(&ev, "angle", enemy->angle);
 }
 
 ///////////////
@@ -394,7 +409,7 @@ void X_LogTargeted(mobj_t *actor, mobj_t *target)
 void X_LogPlayerAttack(mobj_t *player, weapontype_t weapon)
 {
     xevent_t ev = { e_attack, player, NULL };
-    logEventWithExtra(&ev, "weaponType", cJSON_CreateNumber(weapon));
+    logEventWithExtraNumber(&ev, "weaponType", weapon);
 }
 
 void X_LogAttack(mobj_t *source, mobj_t *target)
@@ -412,7 +427,7 @@ void X_LogCounterAttack(mobj_t *enemy, mobj_t *target)
 void X_LogHit(mobj_t *source, mobj_t *target, int damage)
 {
     xevent_t ev = { e_hit, source, target };
-    logEventWithExtra(&ev, "damage", cJSON_CreateNumber(damage));
+    logEventWithExtraNumber(&ev, "damage", damage);
 }
 
 ////
@@ -427,55 +442,47 @@ void X_LogSectorCrossing(mobj_t *actor)
 
 void X_LogArmorBonus(player_t *player)
 {
-    cJSON *armor = cJSON_CreateNumber(player->armorpoints);
     xevent_t ev = { e_armor_bonus, player->mo, NULL };
-    logEventWithExtra(&ev, "armor", armor);
-    cJSON_Delete(armor);
+    logEventWithExtraNumber(&ev, "armor", player->armorpoints);
 }
 
 void X_LogHealthBonus(player_t *player)
 {
-    cJSON *health = cJSON_CreateNumber(player->health);
     xevent_t ev = { e_health_bonus, player->mo, NULL };
-    logEventWithExtra(&ev, "health", health);
-    cJSON_Delete(health);
+    logEventWithExtraNumber(&ev, "health", player->health);
 }
 
 void X_LogHealthPickup(player_t *player, int amount)
 {
-    cJSON *health = cJSON_CreateNumber(amount);
     xevent_t ev = { e_pickup_health, player->mo, NULL };
-    logEventWithExtra(&ev, "health", health);
-    cJSON_Delete(health);
+    logEventWithExtraNumber(&ev, "health", amount);
 }
 
 void X_LogArmorPickup(mobj_t *actor, int armortype)
 {
-    cJSON *type = cJSON_CreateNumber(armortype);
     xevent_t ev = { e_pickup_armor, actor, NULL };
-    logEventWithExtra(&ev, "armorType", type);
-    cJSON_Delete(type);
+    logEventWithExtraNumber(&ev, "armorType", armortype);
 }
 
 void X_LogWeaponPickup(mobj_t *actor, weapontype_t weapon)
 {
-    cJSON *w = cJSON_CreateNumber(weapon);
     xevent_t ev = { e_pickup_weapon, actor, NULL };
-    logEventWithExtra(&ev, "weaponType", w);
-    cJSON_Delete(w);
+    logEventWithExtraNumber(&ev, "weaponType", weapon);
 }
 
 void X_LogCardPickup(player_t *player, card_t card)
 {
     // xxx: card_t is an enum, we should resolve it in the future
-    cJSON *c = cJSON_CreateNumber(card);
     xevent_t ev = { e_pickup_card, player->mo, NULL };
-    logEventWithExtra(&ev, "card", c);
-    cJSON_Delete(c);
+    logEventWithExtraNumber(&ev, "card", card);
 }
 
+////
 
 void X_BindTelemetryVariables()
 {
     M_BindIntVariable("telemetry_enabled", &telemetry_enabled);
+    M_BindIntVariable("telemetry_mode", &telemetry_mode);
+    M_BindStringVariable("telemetry_host", &telemetry_host);
+    M_BindIntVariable("telemetry_port", &telemetry_port);
 }
