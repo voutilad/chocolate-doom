@@ -1823,24 +1823,8 @@ void WI_initVariables(wbstartstruct_t* wbstartstruct)
 
 void WI_Start(wbstartstruct_t* wbstartstruct)
 {
-    int episode = wbstartstruct->epsd;
-    int level = wbstartstruct->next;
-
     WI_initVariables(wbstartstruct);
     WI_loadData();
-
-    if (X_InitLog(episode + 1, level + 1) == -1)
-    {
-        // Try cycling the log...this happens between levels
-        if (X_CloseLog() == 0)
-        {
-            // Last chance at love here, hard failure if this doesn't work
-            if (X_InitLog(episode + 1, level + 1) < 0)
-            {
-                I_Error("Something wrong...cannot init log!");
-            }
-        }
-    }
 
     if (deathmatch)
 	WI_initDeathmatchStats();

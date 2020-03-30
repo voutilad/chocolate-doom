@@ -1755,6 +1755,9 @@ void D_DoomMain (void)
     printf ("NET_Init: Init network subsystem.\n");
     NET_Init ();
 
+    X_InitTelemetry();
+    I_AtExit(X_StopTelemetry, false);
+
     // Initial netgame startup. Connect to server etc.
     D_ConnectNetGame();
 

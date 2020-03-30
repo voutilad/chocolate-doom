@@ -32,7 +32,9 @@
 // Maximal size of our serialized JSON, picked to be < the typical MTU setting
 #define JSON_BUFFER_LEN 1024
 
-// Config Variables and related Macros
+
+// Local config variables and related Macros. These are bound and set via the
+// Doom config framework calls during startup, but to be safe we set defaults.
 static int telemetry_enabled = 0;
 static int telemetry_mode = FILE_MODE;
 static char *telemetry_host = "localhost";
@@ -40,8 +42,11 @@ static int telemetry_port = 10666;
 
 #define ASSERT_TELEMETRY_ON(...) if (!telemetry_enabled) return __VA_ARGS__
 
+// For now, we use a single global logger instance to keep things simple.
+static Logger logger = { -1, NULL, NULL, NULL };
+
 // Used to prevent constant malloc when printing json
-char* jsonbuf = NULL;
+static char* jsonbuf = NULL;
 
 // reference to event log file
 static int log_fd = -1;
@@ -145,8 +150,15 @@ subsector_t* guessActorLocation(mobj_t *actor)
 #endif
 }
 
+//////////////////////////////////////////////////////////////////////////////
+//// JSON wranglin' and wrastlin'
+
+// The primary logging logic, composes a buffer to send to the Logger.
+// Optionally takes a keyword and additional JSON type to add into the
+// resulting JSON Object serialized into the buffer.
 void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
 {
+    int bytes = 0;
     cJSON* json = NULL;
     cJSON* actor = NULL;
     cJSON* frame = NULL;
@@ -154,6 +166,8 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
     cJSON* pos = NULL;
     size_t buflen = 0;
 
+    // XXX: short circuit here for now as it catches all code paths, so most
+    // JSON manipulation is avoided if we're not using telemetry.
     ASSERT_TELEMETRY_ON();
 
     json = cJSON_CreateObject();
@@ -172,6 +186,9 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
 
     cJSON_AddStringToObject(json, "type", eventTypeName(ev->ev_type));
 
+    // Doom calls frames "tics". We'll track both time and tics.
+    // See also: TICRATE in i_timer.h (it's 35)
+    //           TruRunTics() in d_loop.c
     frame = cJSON_CreateObject();
     if (frame == NULL)
     {
@@ -181,6 +198,7 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
     cJSON_AddNumberToObject(frame, "tic", I_GetTime());
     cJSON_AddItemToObject(json, "frame", frame);
 
+    // Compose what we know about any given Actor including their position.
     if (ev->actor != NULL)
     {
         actor = cJSON_CreateObject();
@@ -209,6 +227,7 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
         cJSON_AddItemToObject(json, "actor", actor);
     }
 
+    // Compose what we know about any possible Target to the action
     if (ev->target != NULL)
     {
         target = cJSON_CreateObject();
@@ -229,17 +248,21 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
         cJSON_AddItemToObject(json, "target", target);
     }
 
+    // Serialize the JSON out into a buffer that we then hand off to the Logger
     if (cJSON_PrintPreallocated(json, jsonbuf, JSON_BUFFER_LEN, false))
     {
-        // TODO: refactor out into log writer vs. udp network writer
         buflen = strlen(jsonbuf);
-        write(log_fd, jsonbuf, buflen);
-        write(log_fd, "\n", 1);
+        bytes = logger.write(jsonbuf, buflen);
+        if (bytes < 1)
+        {
+            // TODO: how do we want to handle possible errors?
+            printf("XXX: ??? wrote zero bytes to logger?\n");
+        }
         memset(jsonbuf, 0, JSON_BUFFER_LEN);
     }
     else
     {
-        I_Error("failed to write event to log!");
+        I_Error("failed to write JSON to json buffer?!?");
     }
 
     if (json != NULL)
@@ -248,6 +271,7 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
     }
 }
 
+// Helper function for adding a single Number entry into the JSON Object
 void logEventWithExtraNumber(xevent_t *ev, const char* key, int value)
 {
     cJSON *num = cJSON_CreateNumber(value);
@@ -259,28 +283,26 @@ void logEventWithExtraNumber(xevent_t *ev, const char* key, int value)
     cJSON_Delete(num);
 }
 
+// Simplest logging routine to be called by the exposed log functions
 void logEvent(xevent_t *ev)
 {
     logEventWithExtra(ev, NULL, NULL);
 }
 
-////////
+//////////////////////////////////////////////////////////////////////////////
+//////// FILESYSTEM LOGGER FUNCTIONS
 
-// Initialize event logging framework.
-// Should only be called once!
-int X_InitLog(int episode, int map)
+// Initialize a doom-<timestamp-in-millis>.log file to write events into,
+// setting a globally tracked file descriptor
+int initFileLog()
 {
     time_t t;
     char* filename;
 
-    ASSERT_TELEMETRY_ON(0);
-
-    printf("XXX: X_InitLog(%d, %d) called\n", episode, map);
-
     // Don't init twice
     if (log_fd > -1)
     {
-        printf("XXX: event logfile is already opened!\n");
+        printf("X_InitTelemetry: telemetry logfile is already opened!\n");
         return -1;
     }
 
@@ -289,66 +311,139 @@ int X_InitLog(int episode, int map)
     filename = malloc(MAX_FILENAME_LEN);
     if (filename == NULL)
     {
-        I_Error("failed to malloc room for filename");
+        I_Error("X_InitTelemetry: failed to malloc room for filename");
     }
 
     // blind cast to int for now...who cares?
-    M_snprintf(filename, MAX_FILENAME_LEN, "doom-e%dm%d-%d.log",
-               episode, map, (int) t);
+    M_snprintf(filename, MAX_FILENAME_LEN, "doom-%d.log", (int) t);
     log_fd = open(filename, O_WRONLY | O_APPEND | O_CREAT);
     free(filename);
 
 #ifndef _WIN32
+    // On Win32, this makes sure we end up with proper file permissions
     if (fchmod(log_fd, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) != 0)
     {
-        I_Error("couldn't chmod log file!");
+        I_Error("X_InitTelemetry: couldn't chmod log file!");
     }
 #endif
 
     if (log_fd < 0)
     {
-        I_Error("failed to open logfile!");
+        I_Error("X_InitTelemetry: failed to open logfile!");
     }
 
-    // initialize json write buffer
-    jsonbuf = calloc(JSON_BUFFER_LEN, sizeof(char));
-    if (jsonbuf == NULL)
-    {
-        I_Error("failed to allocate space for json buffer");
-    }
+    printf("X_InitTelemetry: initialized filesystem logger\n");
 
     return 0;
 }
 
-// Shutdown event logging.
-int X_CloseLog()
+// Try to close an open file descriptor, making sure all data is flushed out
+int closeFileLog()
 {
-    int r = 0;
-
-    ASSERT_TELEMETRY_ON(0);
-
-    printf("XXX: X_CloseLog() called\n");
-
     if (close(log_fd) != 0)
     {
-        I_Error("failed to close doom log file");
+        printf("X_StopTelemetry: failed to close doom log file!!");
+        return -1;
     }
 
     log_fd = -1;
 
-    if (jsonbuf != NULL) {
-        free(jsonbuf);
-	jsonbuf = NULL;
-    } else {
-        printf("XXX: json buffer not allocated?!\n");
-        r = r - 2;
+    return 0;
+}
+
+// A naive write implementation for our filesystem logger
+int writeFileLog(char* buf, size_t len)
+{
+    int r = 0;
+    // TODO: optimize this wasteful double-write call
+    r = write(log_fd, buf, len);
+    if (r > 0)
+    {
+        if (write(log_fd, "\n", 1) == 1)
+        {
+            return r + 1;
+        } else
+        {
+            return -1;
+        }
     }
 
     return r;
 }
 
+//////////////////////////////////////////////////////////////////////////////
+//////// UDP LOGGER FUNCTIONS
 
-////////
+// ~~~ TBD ~~~
+
+//////////////////////////////////////////////////////////////////////////////
+//////// Basic framework housekeeping
+
+// Initialize telemetry service based on config, initialize global buffers.
+int X_InitTelemetry(void)
+{
+    ASSERT_TELEMETRY_ON(0);
+
+    if (logger.type < 1)
+    {
+        // TODO: configure differently based on which mode we're using, which
+        // means this should switch to reading telemetry_mode variable
+        logger.type = FILE_MODE;
+        logger.init = &initFileLog;
+        logger.close = &closeFileLog;
+        logger.write = &writeFileLog;
+
+        // initialize json write buffer
+        jsonbuf = calloc(JSON_BUFFER_LEN, sizeof(char));
+        if (jsonbuf == NULL)
+        {
+            I_Error("failed to allocate space for json buffer");
+        }
+
+        // initialize chosen telemetry service
+        if (logger.init() == 0)
+        {
+            printf("X_InitTelemetry: enabled telemetry mode (%d)\n", logger.type);
+        } else
+        {
+            I_Error("X_InitTelemetry: failed to initialize telemetry mode!?");
+        }
+    }
+
+    return logger.type;
+}
+
+// Shutdown telemetry service, cleaning up any global buffers.
+void X_StopTelemetry(void)
+{
+    ASSERT_TELEMETRY_ON();
+
+    if (logger.type > 0)
+    {
+        // Cleanup JSON byte buffer
+        if (jsonbuf != NULL) {
+            free(jsonbuf);
+            jsonbuf = NULL;
+        } else {
+            printf("XXX: json buffer not allocated?!\n");
+        }
+    }
+}
+
+// Called to bind our local variables into the configuration framework so they
+// can be set by the config file or command line
+void X_BindTelemetryVariables(void)
+{
+    M_BindIntVariable("telemetry_enabled", &telemetry_enabled);
+    M_BindIntVariable("telemetry_mode", &telemetry_mode);
+    M_BindStringVariable("telemetry_host", &telemetry_host);
+    M_BindIntVariable("telemetry_port", &telemetry_port);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//////// Public Logging Calls (these should be inserted throughoug Doom code)
+
+///////// Basic start/stop/movement
 
 void X_LogStart(int ep, int level, skill_t mode)
 {
@@ -384,7 +479,13 @@ void X_LogEnemyMove(mobj_t *enemy)
     logEventWithExtraNumber(&ev, "angle", enemy->angle);
 }
 
-///////////////
+void X_LogSectorCrossing(mobj_t *actor)
+{
+    xevent_t ev = { e_entered_subsector, actor, NULL };
+    logEvent(&ev);
+}
+
+////////// Death :-(
 
 void X_LogEnemyKilled(mobj_t *victim)
 {
@@ -398,7 +499,7 @@ void X_LogPlayerDied(mobj_t *killer)
     logEvent(&ev);
 }
 
-///////////////
+////////// Fighting!
 
 void X_LogTargeted(mobj_t *actor, mobj_t *target)
 {
@@ -430,15 +531,7 @@ void X_LogHit(mobj_t *source, mobj_t *target, int damage)
     logEventWithExtraNumber(&ev, "damage", damage);
 }
 
-////
-
-void X_LogSectorCrossing(mobj_t *actor)
-{
-    xevent_t ev = { e_entered_subsector, actor, NULL };
-    logEvent(&ev);
-}
-
-////
+////////// Pickups!
 
 void X_LogArmorBonus(player_t *player)
 {
@@ -475,14 +568,4 @@ void X_LogCardPickup(player_t *player, card_t card)
     // xxx: card_t is an enum, we should resolve it in the future
     xevent_t ev = { e_pickup_card, player->mo, NULL };
     logEventWithExtraNumber(&ev, "card", card);
-}
-
-////
-
-void X_BindTelemetryVariables()
-{
-    M_BindIntVariable("telemetry_enabled", &telemetry_enabled);
-    M_BindIntVariable("telemetry_mode", &telemetry_mode);
-    M_BindStringVariable("telemetry_host", &telemetry_host);
-    M_BindIntVariable("telemetry_port", &telemetry_port);
 }
