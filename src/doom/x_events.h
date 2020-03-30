@@ -26,6 +26,7 @@
 #include "r_defs.h"
 #include "r_main.h"
 
+// Our logger types...maybe move to an enum later?
 #define FILE_MODE 1
 #define UDP_MODE  2
 
@@ -49,6 +50,7 @@ typedef enum
     e_entered_subsector
 } xeventtype_t;
 
+// A basic event data type, with optional actor and target references
 typedef struct xevent_s
 {
     // Type of event we're recording
@@ -63,8 +65,24 @@ typedef struct xevent_s
     mobj_t*         target;
 } xevent_t;
 
-int X_InitLog(int episode, int map);
-int X_CloseLog(void);
+// Our Logger instance ties together a group of functions to keep it generic
+typedef struct {
+    // The type of Logger, e.g. FILE_MODE or UDP_MODE.
+    int type;
+
+    // Initialization function, should be called only once.
+    int (*init)(void);
+
+    // Closing/cleanup function, should be called only at shutdown.
+    int (*close)(void);
+
+    // Writes to the backing logger, should return bytes written successfully
+    // or < 0 on error.
+    int (*write)(char* buf, size_t len);
+} Logger;
+
+int X_InitTelemetry(void);
+void X_StopTelemetry(void);
 
 void X_LogStart(int ep, int level, skill_t mode);
 void X_LogExit(mobj_t *actor);
