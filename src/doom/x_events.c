@@ -62,39 +62,40 @@ static IPaddress addr;
 // Convert an event type enum into a string representation
 const char* eventTypeName(xeventtype_t ev)
 {
-    switch (ev) {
-    case e_start_level:
-        return "START_LEVEL";
-    case e_end_level:
-        return "END_LEVEL";
-    case e_targeted:
-        return "TARGETED";
-    case e_killed:
-        return "KILLED";
-    case e_attack:
-        return "ATTACKED";
-    case e_counterattack:
-        return "COUNTERATTACKED";
-    case e_hit:
-        return "HIT";
-    case e_pickup_armor:
-        return "PICKUP_ARMOR";
-    case e_pickup_health:
-        return "PICKUP_HEALTH";
-    case e_pickup_weapon:
-        return "PICKUP_WEAPON";
-    case e_pickup_card:
-        return "PICKUP_CARD";
-    case e_armor_bonus:
-        return "ARMOR_BONUS";
-    case e_health_bonus:
-        return "HEALTH_BONUS";
-    case e_entered_sector:
-        return "ENTER_SECTOR";
-    case e_entered_subsector:
-        return "ENTER_SUBSECTOR";
-    case e_move:
-        return "MOVE";
+    switch (ev)
+    {
+        case e_start_level:
+            return "START_LEVEL";
+        case e_end_level:
+            return "END_LEVEL";
+        case e_targeted:
+            return "TARGETED";
+        case e_killed:
+            return "KILLED";
+        case e_attack:
+            return "ATTACKED";
+        case e_counterattack:
+            return "COUNTERATTACKED";
+        case e_hit:
+            return "HIT";
+        case e_pickup_armor:
+            return "PICKUP_ARMOR";
+        case e_pickup_health:
+            return "PICKUP_HEALTH";
+        case e_pickup_weapon:
+            return "PICKUP_WEAPON";
+        case e_pickup_card:
+            return "PICKUP_CARD";
+        case e_armor_bonus:
+            return "ARMOR_BONUS";
+        case e_health_bonus:
+            return "HEALTH_BONUS";
+        case e_entered_sector:
+            return "ENTER_SECTOR";
+        case e_entered_subsector:
+            return "ENTER_SUBSECTOR";
+        case e_move:
+            return "MOVE";
     }
 
     printf("XXX: Unknown event type: %d\n", ev);
@@ -105,41 +106,41 @@ const char* eventTypeName(xeventtype_t ev)
 const char* enemyTypeName(mobj_t* enemy) {
     switch (enemy->type)
     {
-    case MT_POSSESSED:
-        return "Soldier";
-    case MT_SHOTGUY:
-        return "Shotgun Soldier";
-    case MT_VILE:
-        return "Vile";
-    case MT_SERGEANT:
-        return "Demon";
-    case MT_SHADOWS:
-        return "Spectre";
-    case MT_TROOP:
-        return "Imp";
-    case MT_TROOPSHOT:
-        return "Imp Fireball";
-    case MT_UNDEAD:
-        return "Undead";
-    case MT_SKULL:
-        return "LostSoul";
-    case MT_HEAD:
-        return "Cacodemon";
-    case MT_HEADSHOT:
-        return "Cacodemon Fireball";
-    case MT_BRUISER:
-        return "Baron of Hell";
-    case MT_BRUISERSHOT:
-        return "Baron Fireball";
-    case MT_BARREL:
-        return "Barrel";
-    case MT_ROCKET:
-        return "Rocket";
-    case MT_PLASMA:
-        return "Plasma";
-    default:
-        printf("XXX: Unknown enemy type: %d\n", enemy->type);
-        return "UNKNOWN_ENEMY";
+        case MT_POSSESSED:
+            return "Soldier";
+        case MT_SHOTGUY:
+            return "Shotgun Soldier";
+        case MT_VILE:
+            return "Vile";
+        case MT_SERGEANT:
+            return "Demon";
+        case MT_SHADOWS:
+            return "Spectre";
+        case MT_TROOP:
+            return "Imp";
+        case MT_TROOPSHOT:
+            return "Imp Fireball";
+        case MT_UNDEAD:
+            return "Undead";
+        case MT_SKULL:
+            return "LostSoul";
+        case MT_HEAD:
+            return "Cacodemon";
+        case MT_HEADSHOT:
+            return "Cacodemon Fireball";
+        case MT_BRUISER:
+            return "Baron of Hell";
+        case MT_BRUISERSHOT:
+            return "Baron Fireball";
+        case MT_BARREL:
+            return "Barrel";
+        case MT_ROCKET:
+            return "Rocket";
+        case MT_PLASMA:
+            return "Plasma";
+        default:
+            printf("XXX: Unknown enemy type: %d\n", enemy->type);
+            return "UNKNOWN_ENEMY";
     }
 }
 
