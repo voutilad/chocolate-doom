@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include "doom/p_mobj.h"
 #include "doom/x_events.h"
+#include "m_config.h"
 
 int main()
 {
@@ -38,8 +39,13 @@ int main()
     mp.player = &p;
     p.mo = &mp;
 
+    // udp mode
+    M_SetVariable("telemetry_enabled", "1");
+    M_SetVariable("telemetry_mode", "2");
+    M_SetVariable("telemetry_host", "localhost");
+    M_SetVariable("telemetry_port", "10666");
 
-    if (X_InitLog(69, 69) != 0) {
+    if (X_InitTelemetry() != 0) {
         printf("failed to init log\n");
         return -1;
     }
@@ -53,6 +59,7 @@ int main()
     X_LogPlayerMove(p.mo);
 
     X_LogPlayerDied(&m1);
-    X_CloseLog();
+
+    X_StopTelemetry();
     return 0;
 }
