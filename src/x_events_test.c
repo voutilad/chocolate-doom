@@ -40,12 +40,13 @@ int main()
     p.mo = &mp;
 
     // udp mode
+    X_BindTelemetryVariables();
     M_SetVariable("telemetry_enabled", "1");
     M_SetVariable("telemetry_mode", "2");
     M_SetVariable("telemetry_host", "localhost");
     M_SetVariable("telemetry_port", "10666");
 
-    if (X_InitTelemetry() != 0) {
+    if (X_InitTelemetry() < 1) {
         printf("failed to init log\n");
         return -1;
     }
