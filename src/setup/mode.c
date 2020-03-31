@@ -36,6 +36,7 @@
 #include "mouse.h"
 #include "multiplayer.h"
 #include "sound.h"
+#include "telemetry.h"
 
 #include "mode.h"
 
