@@ -436,7 +436,11 @@ int writeUdpLog(char *msg, size_t len)
         I_Error("X_Telemetry: failed to allocate buffer for UDPpacket?!");
     }
 
-    strlcpy((char*)buf, msg, len + 1);
+    if (!M_StringCopy((char*)buf, msg, len + 1))
+    {
+        I_Error("X_Telemetry: udp packet buf truncated...something wrong!?");
+    }
+
     packet->data = buf;
     packet->len = len;
     packet->address = addr;
