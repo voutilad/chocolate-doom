@@ -421,27 +421,18 @@ int writeUdpLog(char *msg, size_t len)
 {
     // XXX: naive approach for now, constantly mallocs etc.
     UDPpacket *packet = NULL;
-    uint8_t *buf = NULL;
     int r = 0;
 
-    packet = SDLNet_AllocPacket(len);
+    packet = SDLNet_AllocPacket(len + 1);
     if (packet == NULL)
     {
         I_Error("X_Telemetry: couldn't allocate a UDPpacket!?");
     }
 
-    buf = malloc(packet->maxlen);
-    if (buf == NULL)
-    {
-        I_Error("X_Telemetry: failed to allocate buffer for UDPpacket?!");
-    }
-
-    if (!M_StringCopy((char*)buf, msg, len + 1))
+    if (!M_StringCopy((char*)packet->data, msg, len + 1))
     {
         I_Error("X_Telemetry: udp packet buf truncated...something wrong!?");
     }
-
-    packet->data = buf;
     packet->len = len;
     packet->address = addr;
 
