@@ -22,6 +22,7 @@
 #include <sys/stat.h>
 
 #include "cJSON.h"
+#include "SDL2/SDL_net.h"
 
 #include "m_config.h"
 #include "m_fixed.h"
@@ -48,8 +49,15 @@ static Logger logger = { -1, NULL, NULL, NULL };
 // Used to prevent constant malloc when printing json
 static char* jsonbuf = NULL;
 
+///// FileSystem Logger
 // reference to event log file
 static int log_fd = -1;
+
+///// UDP Logger
+// UDP state
+static UDPsocket socket;
+// Target to broadcast packets to
+static IPaddress addr;
 
 // Convert an event type enum into a string representation
 const char* eventTypeName(xeventtype_t ev)
@@ -294,7 +302,7 @@ void logEvent(xevent_t *ev)
 
 // Initialize a doom-<timestamp-in-millis>.log file to write events into,
 // setting a globally tracked file descriptor
-int initFileLog()
+int initFileLog(void)
 {
     time_t t;
     char* filename;
@@ -338,7 +346,7 @@ int initFileLog()
 }
 
 // Try to close an open file descriptor, making sure all data is flushed out
-int closeFileLog()
+int closeFileLog(void)
 {
     if (close(log_fd) != 0)
     {
@@ -352,11 +360,11 @@ int closeFileLog()
 }
 
 // A naive write implementation for our filesystem logger
-int writeFileLog(char* buf, size_t len)
+int writeFileLog(char* msg, size_t len)
 {
     int r = 0;
     // TODO: optimize this wasteful double-write call
-    r = write(log_fd, buf, len);
+    r = write(log_fd, msg, len);
     if (r > 0)
     {
         if (write(log_fd, "\n", 1) == 1)
@@ -374,7 +382,77 @@ int writeFileLog(char* buf, size_t len)
 //////////////////////////////////////////////////////////////////////////////
 //////// UDP LOGGER FUNCTIONS
 
-// ~~~ TBD ~~~
+// Initialize SDL_Net even though it may be initialized elsewhere in Doom.
+int initUdpLog(void)
+{
+    const SDL_version *link_version = SDLNet_Linked_Version();
+
+    printf("X_InitTelemetry: starting udp logger using SDL_Net v%d.%d.%d\n",
+           link_version->major, link_version->minor, link_version->patch);
+
+    if (SDLNet_Init() != 0)
+    {
+        I_Error("X_InitTelemetry: failed to initialize SDL_Net?!");
+    }
+
+    socket = SDLNet_UDP_Open(0);
+    if (!socket)
+    {
+        I_Error("X_InitTelemetry: could not bind a port for outbound UDP!?");
+    }
+
+    if (SDLNet_ResolveHost(&addr, telemetry_host, telemetry_port) != 0)
+    {
+        I_Error("X_InitTelemetry: unable to resolve %s:%d",
+                telemetry_host, telemetry_port);
+    }
+
+    // TODO: initialize bufs??
+
+    return 0;
+}
+
+// TODO: cleanup any bufs?
+int closeUdpLog(void)
+{
+    // TODO: should we call SDLNet_Quit()?
+    return 0;
+}
+
+// Try to create and broadcast a UDPpacket;
+int writeUdpLog(char *msg, size_t len)
+{
+    // XXX: naive approach for now, constantly mallocs etc.
+    UDPpacket *packet = NULL;
+    uint8_t *buf = NULL;
+    int r = 0;
+
+    packet = SDLNet_AllocPacket(len);
+    if (packet == NULL)
+    {
+        I_Error("X_Telemetry: couldn't allocate a UDPpacket!?");
+    }
+
+    buf = malloc(packet->maxlen);
+    if (buf == NULL)
+    {
+        I_Error("X_Telemetry: failed to allocate buffer for UDPpacket?!");
+    }
+
+    strlcpy((char*)buf, msg, len);
+    packet->data = buf;
+    packet->len = len;
+    packet->address = addr;
+
+    r = SDLNet_UDP_Send(socket, -1, packet);
+    if (r != 1)
+    {
+        printf("XXX: something wrong with sending udp? (r = %d)", r);
+    }
+
+    SDLNet_FreePacket(packet);
+    return r;
+}
 
 //////////////////////////////////////////////////////////////////////////////
 //////// Basic framework housekeeping
@@ -386,12 +464,23 @@ int X_InitTelemetry(void)
 
     if (logger.type < 1)
     {
-        // TODO: configure differently based on which mode we're using, which
-        // means this should switch to reading telemetry_mode variable
-        logger.type = FILE_MODE;
-        logger.init = &initFileLog;
-        logger.close = &closeFileLog;
-        logger.write = &writeFileLog;
+        switch (telemetry_mode)
+        {
+            case FILE_MODE:
+                logger.type = FILE_MODE;
+                logger.init = initFileLog;
+                logger.close = closeFileLog;
+                logger.write = writeFileLog;
+                break;
+            case UDP_MODE:
+                logger.type = UDP_MODE;
+                logger.init = initUdpLog;
+                logger.close = closeUdpLog;
+                logger.write = writeUdpLog;
+                break;
+            default:
+                I_Error("X_InitTelemetry: Unsupported telemetry mode (%d)", telemetry_mode);
+        }
 
         // initialize json write buffer
         jsonbuf = calloc(JSON_BUFFER_LEN, sizeof(char));
