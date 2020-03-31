@@ -31,7 +31,8 @@
 #define MAX_FILENAME_LEN 128
 
 // Maximal size of our serialized JSON, picked to be < the typical MTU setting
-#define JSON_BUFFER_LEN 1024
+// minus 1 byte to reserve for '\n'
+#define JSON_BUFFER_LEN 1023
 
 
 // Local config variables and related Macros. These are bound and set via the
@@ -261,13 +262,22 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
     if (cJSON_PrintPreallocated(json, jsonbuf, JSON_BUFFER_LEN, false))
     {
         buflen = strlen(jsonbuf);
-        bytes = logger.write(jsonbuf, buflen);
+
+        if (buflen > JSON_BUFFER_LEN)
+        {
+            I_Error("XXX: something horribly wrong with jsonbuf!");
+        }
+
+        // the world is prettier when we end a message with a newline ;-)
+        jsonbuf[buflen] = '\n';
+
+        bytes = logger.write(jsonbuf, buflen + 1);
         if (bytes < 1)
         {
             // TODO: how do we want to handle possible errors?
             printf("XXX: ??? wrote zero bytes to logger?\n");
         }
-        memset(jsonbuf, 0, JSON_BUFFER_LEN);
+        memset(jsonbuf, 0, JSON_BUFFER_LEN + 1);
     }
     else
     {
@@ -363,21 +373,7 @@ int closeFileLog(void)
 // A naive write implementation for our filesystem logger
 int writeFileLog(char* msg, size_t len)
 {
-    int r = 0;
-    // TODO: optimize this wasteful double-write call
-    r = write(log_fd, msg, len);
-    if (r > 0)
-    {
-        if (write(log_fd, "\n", 1) == 1)
-        {
-            return r + 1;
-        } else
-        {
-            return -1;
-        }
-    }
-
-    return r;
+    return write(log_fd, msg, len);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -440,18 +436,19 @@ int writeUdpLog(char *msg, size_t len)
         I_Error("X_Telemetry: failed to allocate buffer for UDPpacket?!");
     }
 
-    strlcpy((char*)buf, msg, len);
+    strlcpy((char*)buf, msg, len + 1);
     packet->data = buf;
     packet->len = len;
     packet->address = addr;
 
-    r = SDLNet_UDP_Send(socket, -1, packet);
-    if (r != 1)
+    if (SDLNet_UDP_Send(socket, -1, packet) != 1)
     {
         printf("XXX: something wrong with sending udp? (r = %d)", r);
     }
 
+    r = packet->status;
     SDLNet_FreePacket(packet);
+
     return r;
 }
 
@@ -484,7 +481,7 @@ int X_InitTelemetry(void)
         }
 
         // initialize json write buffer
-        jsonbuf = calloc(JSON_BUFFER_LEN, sizeof(char));
+        jsonbuf = calloc(JSON_BUFFER_LEN + 1, sizeof(char));
         if (jsonbuf == NULL)
         {
             I_Error("failed to allocate space for json buffer");
