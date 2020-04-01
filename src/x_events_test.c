@@ -27,15 +27,21 @@ int main()
     m1.x = 10;
     m1.y = 20;
     m1.z = 0;
+    m1.angle = 180;
     m1.type = MT_SHOTGUY;
+    m1.player = NULL;
+
     m2.x = 11;
     m2.y = 22;
     m2.z = 1;
+    m2.angle = 180;
     m2.type = MT_BARREL;
+    m2.player = NULL;
 
     mp.x = 12;
     mp.y = 13;
     mp.z = 0;
+    mp.angle = 180;
     mp.player = &p;
     p.mo = &mp;
 
@@ -50,17 +56,33 @@ int main()
         printf("failed to init log\n");
         return -1;
     }
+    printf("...log start\n");
     X_LogStart(69, 69, 1);
+
+    printf("...log armor\n");
     X_LogArmorPickup(p.mo, 69);
+
+    printf("...log weapon\n");
     X_LogWeaponPickup(p.mo, wp_shotgun);
+
+    printf("...log enemy move\n");
     X_LogEnemyMove(&m1);
+
+    printf("...log targeted\n");
+    m1.target = &m2;
     X_LogTargeted(&m1, &m2);
+
+    printf("...log enemy killed\n");
     X_LogEnemyKilled(&m1);
 
+    printf("...log player move\n");
     X_LogPlayerMove(p.mo);
 
+    m1.target = &mp;
+    printf("...log player died\n");
     X_LogPlayerDied(&m1);
 
+    printf("...stop\n");
     X_StopTelemetry();
     return 0;
 }
