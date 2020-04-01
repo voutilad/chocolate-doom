@@ -22,7 +22,7 @@
 #include <sys/stat.h>
 
 #include "cJSON.h"
-#include "SDL2/SDL_net.h"
+#include "SDL_net.h"
 
 #include "m_config.h"
 #include "m_fixed.h"
