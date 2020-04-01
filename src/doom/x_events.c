@@ -335,7 +335,7 @@ int initFileLog(void)
 
     // blind cast to int for now...who cares?
     M_snprintf(filename, MAX_FILENAME_LEN, "doom-%d.log", (int) t);
-    log_fd = open(filename, O_WRONLY | O_APPEND | O_CREAT);
+    log_fd = open(filename, O_WRONLY | O_APPEND | O_CREAT, 0666);
     free(filename);
 
 #ifndef _WIN32
