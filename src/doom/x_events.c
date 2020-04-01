@@ -59,6 +59,8 @@ static int log_fd = -1;
 static UDPsocket socket;
 // Target to broadcast packets to
 static IPaddress addr;
+// Re-useable packet instance since we only send 1 at a time
+static UDPpacket *packet = NULL;
 
 // Convert an event type enum into a string representation
 const char* eventTypeName(xeventtype_t ev)
@@ -393,7 +395,7 @@ int initUdpLog(void)
     }
 
     socket = SDLNet_UDP_Open(0);
-    if (!socket)
+    if (socket == NULL)
     {
         I_Error("X_InitTelemetry: could not bind a port for outbound UDP!?");
     }
@@ -404,6 +406,13 @@ int initUdpLog(void)
                 telemetry_host, telemetry_port);
     }
 
+    packet = SDLNet_AllocPacket(JSON_BUFFER_LEN + 1);
+    if (packet == NULL)
+    {
+        I_Error("X_InitTelemetry: could not allocate udp packet?!");
+    }
+    packet->address = addr;
+
     // TODO: initialize bufs??
 
     return 0;
@@ -412,39 +421,36 @@ int initUdpLog(void)
 // TODO: cleanup any bufs?
 int closeUdpLog(void)
 {
-    // TODO: should we call SDLNet_Quit()?
+    if (packet != NULL)
+    {
+        SDLNet_FreePacket(packet);
+    }
+
+    if (socket != NULL)
+    {
+        SDLNet_UDP_Close(socket);
+    }
+
     return 0;
 }
 
 // Try to create and broadcast a UDPpacket;
 int writeUdpLog(char *msg, size_t len)
 {
-    // XXX: naive approach for now, constantly mallocs etc.
-    UDPpacket *packet = NULL;
-    int r = 0;
-
-    packet = SDLNet_AllocPacket(len + 1);
-    if (packet == NULL)
-    {
-        I_Error("X_Telemetry: couldn't allocate a UDPpacket!?");
-    }
-
+    // We mutate the same UDPpacket, updating the payload in .data and the .len
     if (!M_StringCopy((char*)packet->data, msg, len + 1))
     {
         I_Error("X_Telemetry: udp packet buf truncated...something wrong!?");
     }
     packet->len = len;
-    packet->address = addr;
 
     if (SDLNet_UDP_Send(socket, -1, packet) != 1)
     {
-        printf("XXX: something wrong with sending udp? (r = %d)", r);
+        printf("XXX: something wrong with sending udp packet?");
     }
 
-    r = packet->status;
-    SDLNet_FreePacket(packet);
-
-    return r;
+    // contains total bytes sent
+    return packet->status;
 }
 
 //////////////////////////////////////////////////////////////////////////////
