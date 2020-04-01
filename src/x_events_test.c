@@ -22,6 +22,8 @@
 
 int main()
 {
+    char* modes[] = { "1", "2", NULL };
+    int i;
     player_t p;
     mobj_t m1, m2, mp;
     m1.x = 10;
@@ -48,41 +50,45 @@ int main()
     // udp mode
     X_BindTelemetryVariables();
     M_SetVariable("telemetry_enabled", "1");
-    M_SetVariable("telemetry_mode", "2");
     M_SetVariable("telemetry_host", "localhost");
     M_SetVariable("telemetry_port", "10666");
 
-    if (X_InitTelemetry() < 1) {
-        printf("failed to init log\n");
-        return -1;
+    for (i = 0; modes[i] != NULL; i++)
+    {
+        printf("----- TESTING MODE %s -----\n", modes[i]);
+        M_SetVariable("telemetry_mode", modes[i]);
+        if (X_InitTelemetry() < 1) {
+            printf("failed to init log\n");
+            return -1;
+        }
+        printf("...log start\n");
+        X_LogStart(69, 69, 1);
+
+        printf("...log armor\n");
+        X_LogArmorPickup(p.mo, 69);
+
+        printf("...log weapon\n");
+        X_LogWeaponPickup(p.mo, wp_shotgun);
+
+        printf("...log enemy move\n");
+        X_LogEnemyMove(&m1);
+
+        printf("...log targeted\n");
+        m1.target = &m2;
+        X_LogTargeted(&m1, &m2);
+
+        printf("...log enemy killed\n");
+        X_LogEnemyKilled(&m1);
+
+        printf("...log player move\n");
+        X_LogPlayerMove(p.mo);
+
+        m1.target = &mp;
+        printf("...log player died\n");
+        X_LogPlayerDied(&m1);
+
+        printf("...stop\n");
+        X_StopTelemetry();
     }
-    printf("...log start\n");
-    X_LogStart(69, 69, 1);
-
-    printf("...log armor\n");
-    X_LogArmorPickup(p.mo, 69);
-
-    printf("...log weapon\n");
-    X_LogWeaponPickup(p.mo, wp_shotgun);
-
-    printf("...log enemy move\n");
-    X_LogEnemyMove(&m1);
-
-    printf("...log targeted\n");
-    m1.target = &m2;
-    X_LogTargeted(&m1, &m2);
-
-    printf("...log enemy killed\n");
-    X_LogEnemyKilled(&m1);
-
-    printf("...log player move\n");
-    X_LogPlayerMove(p.mo);
-
-    m1.target = &mp;
-    printf("...log player died\n");
-    X_LogPlayerDied(&m1);
-
-    printf("...stop\n");
-    X_StopTelemetry();
     return 0;
 }

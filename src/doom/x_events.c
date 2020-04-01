@@ -338,7 +338,6 @@ int initFileLog(void)
     // blind cast to int for now...who cares?
     M_snprintf(filename, MAX_FILENAME_LEN, "doom-%d.log", (int) t);
     log_fd = open(filename, O_WRONLY | O_APPEND | O_CREAT, 0666);
-    free(filename);
 
 #ifndef _WIN32
     // On Win32, this makes sure we end up with proper file permissions
@@ -353,7 +352,9 @@ int initFileLog(void)
         I_Error("X_InitTelemetry: failed to open logfile!");
     }
 
-    printf("X_InitTelemetry: initialized filesystem logger\n");
+    printf("X_InitTelemetry: initialized filesystem logger writing to '%s'\n",
+        filename);
+    free(filename);
 
     return 0;
 }
@@ -413,7 +414,8 @@ int initUdpLog(void)
     }
     packet->address = addr;
 
-    // TODO: initialize bufs??
+    printf("X_InitTelemetry: initialized udp logger to %s:%d\n",
+           telemetry_host, telemetry_port);
 
     return 0;
 }
@@ -508,6 +510,15 @@ void X_StopTelemetry(void)
 
     if (logger.type > 0)
     {
+        if (logger.close != NULL)
+        {
+            if (logger.close() != 0)
+            {
+                printf("XXX: problem closing logger (type=%d)?!\n",
+                       logger.type);
+            }
+        }
+
         // Cleanup JSON byte buffer
         if (jsonbuf != NULL) {
             free(jsonbuf);
@@ -515,6 +526,14 @@ void X_StopTelemetry(void)
         } else {
             printf("XXX: json buffer not allocated?!\n");
         }
+
+        // Cleanup Logger
+        logger.type = -1;
+        logger.init = NULL;
+        logger.close = NULL;
+        logger.write = NULL;
+
+        printf("X_StopTelemetry: shut down telemetry service\n");
     }
 }
 
