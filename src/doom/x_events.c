@@ -68,41 +68,41 @@ const char* eventTypeName(xeventtype_t ev)
     switch (ev)
     {
         case e_start_level:
-            return "START_LEVEL";
+            return "start_level";
         case e_end_level:
-            return "END_LEVEL";
+            return "end_level";
         case e_targeted:
-            return "TARGETED";
+            return "targeted";
         case e_killed:
-            return "KILLED";
+            return "killed";
         case e_attack:
-            return "ATTACKED";
+            return "attacked";
         case e_counterattack:
-            return "COUNTERATTACKED";
+            return "counter_attacked";
         case e_hit:
-            return "HIT";
+            return "hit";
         case e_pickup_armor:
-            return "PICKUP_ARMOR";
+            return "pickup_armor";
         case e_pickup_health:
-            return "PICKUP_HEALTH";
+            return "pickup_health";
         case e_pickup_weapon:
-            return "PICKUP_WEAPON";
+            return "pickup_weapon";
         case e_pickup_card:
-            return "PICKUP_CARD";
+            return "pickup_card";
         case e_armor_bonus:
-            return "ARMOR_BONUS";
+            return "armor_bonus";
         case e_health_bonus:
-            return "HEALTH_BONUS";
+            return "health_bonus";
         case e_entered_sector:
-            return "ENTER_SECTOR";
+            return "enter_sector";
         case e_entered_subsector:
-            return "ENTER_SUBSECTOR";
+            return "enter_subsector";
         case e_move:
-            return "MOVE";
+            return "move";
     }
 
     printf("XXX: Unknown event type: %d\n", ev);
-    return "UNKNOWN_EVENT";
+    return "unknown_event";
 }
 
 // Convert a mobj type into an enemy name string
@@ -110,40 +110,40 @@ const char* enemyTypeName(mobj_t* enemy) {
     switch (enemy->type)
     {
         case MT_POSSESSED:
-            return "Soldier";
+            return "soldier";
         case MT_SHOTGUY:
-            return "Shotgun Soldier";
+            return "shotgun_soldier";
         case MT_VILE:
-            return "Vile";
+            return "vile";
         case MT_SERGEANT:
-            return "Demon";
+            return "demon";
         case MT_SHADOWS:
-            return "Spectre";
+            return "spectre";
         case MT_TROOP:
-            return "Imp";
+            return "imp";
         case MT_TROOPSHOT:
-            return "Imp Fireball";
+            return "imp_fireball";
         case MT_UNDEAD:
-            return "Undead";
+            return "undead";
         case MT_SKULL:
-            return "LostSoul";
+            return "lost_soul";
         case MT_HEAD:
-            return "Cacodemon";
+            return "cacodemon";
         case MT_HEADSHOT:
-            return "Cacodemon Fireball";
+            return "cacodemon_fireball";
         case MT_BRUISER:
-            return "Baron of Hell";
+            return "baron_of_hell";
         case MT_BRUISERSHOT:
-            return "Baron Fireball";
+            return "baron_fireball";
         case MT_BARREL:
-            return "Barrel";
+            return "barrel";
         case MT_ROCKET:
-            return "Rocket";
+            return "rocket";
         case MT_PLASMA:
-            return "Plasma";
+            return "plasma";
         default:
             printf("XXX: Unknown enemy type: %d\n", enemy->type);
-            return "UNKNOWN_ENEMY";
+            return "unknown_enemy";
     }
 }
 
@@ -223,6 +223,7 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
         cJSON_AddNumberToObject(pos, "x", ev->actor->x);
         cJSON_AddNumberToObject(pos, "y", ev->actor->y);
         cJSON_AddNumberToObject(pos, "z", ev->actor->z);
+        cJSON_AddNumberToObject(pos, "angle", ev->actor->angle);
         cJSON_AddNumberToObject(pos, "subsector",
                                 (uintptr_t) guessActorLocation(ev->actor));
         cJSON_AddItemToObject(actor, "position", pos);
@@ -574,16 +575,10 @@ void X_LogExit(mobj_t *actor)
     logEvent(&ev);
 }
 
-void X_LogPlayerMove(mobj_t *player)
+void X_LogMove(mobj_t *actor)
 {
-    xevent_t ev = { e_move, player, NULL };
-    logEventWithExtraNumber(&ev, "angle", player->angle);
-}
-
-void X_LogEnemyMove(mobj_t *enemy)
-{
-    xevent_t ev = { e_move, enemy, NULL };
-    logEventWithExtraNumber(&ev, "angle", enemy->angle);
+    xevent_t ev = { e_move, actor, NULL };
+    logEvent(&ev);
 }
 
 void X_LogSectorCrossing(mobj_t *actor)
@@ -617,7 +612,7 @@ void X_LogTargeted(mobj_t *actor, mobj_t *target)
 void X_LogPlayerAttack(mobj_t *player, weapontype_t weapon)
 {
     xevent_t ev = { e_attack, player, NULL };
-    logEventWithExtraNumber(&ev, "weaponType", weapon);
+    logEventWithExtraNumber(&ev, "weapon_type", weapon);
 }
 
 void X_LogAttack(mobj_t *source, mobj_t *target)
@@ -661,13 +656,13 @@ void X_LogHealthPickup(player_t *player, int amount)
 void X_LogArmorPickup(mobj_t *actor, int armortype)
 {
     xevent_t ev = { e_pickup_armor, actor, NULL };
-    logEventWithExtraNumber(&ev, "armorType", armortype);
+    logEventWithExtraNumber(&ev, "armor_type", armortype);
 }
 
 void X_LogWeaponPickup(mobj_t *actor, weapontype_t weapon)
 {
     xevent_t ev = { e_pickup_weapon, actor, NULL };
-    logEventWithExtraNumber(&ev, "weaponType", weapon);
+    logEventWithExtraNumber(&ev, "weapon_type", weapon);
 }
 
 void X_LogCardPickup(player_t *player, card_t card)

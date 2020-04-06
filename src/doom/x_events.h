@@ -87,8 +87,7 @@ void X_StopTelemetry(void);
 void X_LogStart(int ep, int level, skill_t mode);
 void X_LogExit(mobj_t *actor);
 
-void X_LogPlayerMove(mobj_t *actor);
-void X_LogEnemyMove(mobj_t *actor);
+void X_LogMove(mobj_t *actor);
 
 void X_LogEnemyKilled(mobj_t *victim);
 void X_LogPlayerDied(mobj_t *killer);

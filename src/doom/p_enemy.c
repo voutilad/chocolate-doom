@@ -320,7 +320,7 @@ boolean P_Move (mobj_t*	actor)
 		good = true;
 	}
         if (good)
-            X_LogEnemyMove(actor);
+            X_LogMove(actor);
 
 	return good;
     }
@@ -329,7 +329,7 @@ boolean P_Move (mobj_t*	actor)
 	actor->flags &= ~MF_INFLOAT;
     }
 
-    X_LogEnemyMove(actor);
+    X_LogMove(actor);
 
     if (! (actor->flags & MF_FLOAT) )
 	actor->z = actor->floorz;
