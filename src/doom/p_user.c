@@ -61,7 +61,7 @@ P_Thrust
     player->mo->momx += FixedMul(move,finecosine[angle]);
     player->mo->momy += FixedMul(move,finesine[angle]);
 
-    X_LogPlayerMove(player->mo);
+    X_LogMove(player->mo);
 }
 
 

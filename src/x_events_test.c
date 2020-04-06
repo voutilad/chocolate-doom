@@ -14,11 +14,26 @@
 // DESCRIPTION:
 //	Event logging framework and utils
 //
-
 #include <stdio.h>
+
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
+
 #include "doom/p_mobj.h"
 #include "doom/x_events.h"
 #include "m_config.h"
+
+#ifdef _WIN32
+// Stub out this function
+boolean D_IsIWADName(const char *name)
+{
+    return true;
+}
+#endif
 
 int main()
 {
@@ -47,6 +62,15 @@ int main()
     mp.player = &p;
     p.mo = &mp;
 
+#ifdef _WIN32
+    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE),
+                            BACKGROUND_BLUE | FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+    AttachConsole(-1);
+    freopen("CONIN$", "r", stdin);
+    freopen("CONOUT$", "w", stdout);
+    freopen("CONOUT$", "w", stderr);
+#endif
+
     // udp mode
     X_BindTelemetryVariables();
     M_SetVariable("telemetry_enabled", "1");
@@ -71,7 +95,7 @@ int main()
         X_LogWeaponPickup(p.mo, wp_shotgun);
 
         printf("...log enemy move\n");
-        X_LogEnemyMove(&m1);
+        X_LogMove(&m1);
 
         printf("...log targeted\n");
         m1.target = &m2;
@@ -81,7 +105,7 @@ int main()
         X_LogEnemyKilled(&m1);
 
         printf("...log player move\n");
-        X_LogPlayerMove(p.mo);
+        X_LogMove(p.mo);
 
         m1.target = &mp;
         printf("...log player died\n");
