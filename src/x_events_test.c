@@ -74,8 +74,8 @@ int main()
     // udp mode
     X_BindTelemetryVariables();
     M_SetVariable("telemetry_enabled", "1");
-    M_SetVariable("telemetry_host", "localhost");
-    M_SetVariable("telemetry_port", "10666");
+    M_SetVariable("telemetry_udp_host", "localhost");
+    M_SetVariable("telemetry_udp_port", "10666");
 
     for (i = 0; modes[i] != NULL; i++)
     {

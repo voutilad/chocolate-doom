@@ -39,8 +39,12 @@
 // Doom config framework calls during startup, but to be safe we set defaults.
 static int telemetry_enabled = 0;
 static int telemetry_mode = FILE_MODE;
-static char *telemetry_host = "localhost";
-static int telemetry_port = 10666;
+
+static char *udp_host = "localhost";
+static int udp_port = 10666;
+
+static char *kafka_topic = "doom-telemetry";
+static char *kafka_brokers = "localhost:9092";
 
 #define ASSERT_TELEMETRY_ON(...) if (!telemetry_enabled) return __VA_ARGS__
 
@@ -402,10 +406,10 @@ int initUdpLog(void)
         I_Error("X_InitTelemetry: could not bind a port for outbound UDP!?");
     }
 
-    if (SDLNet_ResolveHost(&addr, telemetry_host, telemetry_port) != 0)
+    if (SDLNet_ResolveHost(&addr, udp_host, udp_port) != 0)
     {
         I_Error("X_InitTelemetry: unable to resolve %s:%d",
-                telemetry_host, telemetry_port);
+                udp_host, udp_port);
     }
 
     packet = SDLNet_AllocPacket(JSON_BUFFER_LEN + 1);
@@ -416,7 +420,7 @@ int initUdpLog(void)
     packet->address = addr;
 
     printf("X_InitTelemetry: initialized udp logger to %s:%d\n",
-           telemetry_host, telemetry_port);
+           udp_host, udp_port);
 
     return 0;
 }
@@ -480,6 +484,9 @@ int X_InitTelemetry(void)
                 logger.close = closeUdpLog;
                 logger.write = writeUdpLog;
                 break;
+            case KAFKA_MODE:
+                printf("X_InitTelemetry: kafka mode not yet available. Sorry!");
+                return 0;
             default:
                 I_Error("X_InitTelemetry: Unsupported telemetry mode (%d)", telemetry_mode);
         }
@@ -544,8 +551,12 @@ void X_BindTelemetryVariables(void)
 {
     M_BindIntVariable("telemetry_enabled", &telemetry_enabled);
     M_BindIntVariable("telemetry_mode", &telemetry_mode);
-    M_BindStringVariable("telemetry_host", &telemetry_host);
-    M_BindIntVariable("telemetry_port", &telemetry_port);
+    M_BindStringVariable("telemetry_udp_host", &udp_host);
+    M_BindIntVariable("telemetry_udp_port", &udp_port);
+#ifdef HAVE_LIBRDKAFKA
+    M_BindStringVariable("telemetry_kafka_topic", &kafka_topic);
+    M_BindStringVariable("telemetry_kafka_brokers", &kafka_brokers);
+#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////

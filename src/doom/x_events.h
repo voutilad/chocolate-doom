@@ -27,8 +27,9 @@
 #include "r_main.h"
 
 // Our logger types...maybe move to an enum later?
-#define FILE_MODE 1
-#define UDP_MODE  2
+#define FILE_MODE       1
+#define UDP_MODE        2
+#define KAFKA_MODE      3
 
 typedef enum
 {

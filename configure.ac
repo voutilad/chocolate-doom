@@ -22,7 +22,7 @@ AC_CHECK_PROG(HAVE_PYTHON, python, true, false)
 
 OPT_LEVEL=2
 
-# If this is gcc, we have some options we'd like to turn on.  Turn on 
+# If this is gcc, we have some options we'd like to turn on.  Turn on
 # optimisation and debugging symbols.
 
 if test "$GCC" = "yes"
@@ -115,10 +115,28 @@ AS_IF([test "x$with_libpng" != xno], [
     ])
 ])
 
+# Check for librdkafka.
+AC_ARG_WITH([librdkafka],
+AS_HELP_STRING([--without-librdkafka],
+    [Build without librdkafka @<:@default=check@:>@]),
+[],
+[
+    [with_librdkafka=check]
+])
+AS_IF([test "x$with_librdkafka" != xno], [
+    PKG_CHECK_MODULES(RDKAFKA, rdkafka >= 1.4.0, [
+        AC_DEFINE([HAVE_LIBRDKAFKA], [1], [librdkafka installed])
+    ], [
+        AS_IF([test "x$with_librdkafka" != xcheck], [AC_MSG_FAILURE(
+            [--with-librdkafka was given, but test for librdkafka failed])
+        ])
+    ])
+])
+
 # TODO: We currently link everything against libraries that don't need it.
 # Use the specific library CFLAGS/LIBS variables instead of setting them here.
-CFLAGS="$CFLAGS $SDL_CFLAGS ${SAMPLERATE_CFLAGS:-} ${PNG_CFLAGS:-}"
-LDFLAGS="$LDFLAGS $SDL_LIBS ${SAMPLERATE_LIBS:-} ${PNG_LIBS:-}"
+CFLAGS="$CFLAGS $SDL_CFLAGS ${SAMPLERATE_CFLAGS:-} ${PNG_CFLAGS:-} ${RDKAFKA_CFLAGS:-}"
+LDFLAGS="$LDFLAGS $SDL_LIBS ${SAMPLERATE_LIBS:-} ${PNG_LIBS:-} ${RDKAFKA_LIBS:-}"
 AC_CHECK_LIB(m, log)
 
 AC_CHECK_HEADERS([dirent.h linux/kd.h dev/isa/spkrio.h dev/speaker/speaker.h])
@@ -236,4 +254,3 @@ textscreen/Makefile
 textscreen/examples/Makefile
 textscreen/fonts/Makefile
 ])
-
