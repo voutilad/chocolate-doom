@@ -702,7 +702,7 @@ static default_t	doom_defaults_list[] =
     // UDP Host or IP for sending telemetry via network
     //
 
-    CONFIG_VARIABLE_STRING(telemetry_host),
+    CONFIG_VARIABLE_STRING(telemetry_udp_host),
 
     //!
     // @game doom
@@ -710,7 +710,26 @@ static default_t	doom_defaults_list[] =
     // UDP Port for sending telemetry via network
     //
 
-    CONFIG_VARIABLE_INT(telemetry_port),
+    CONFIG_VARIABLE_INT(telemetry_udp_port),
+
+#ifdef HAVE_LIBRDKAFKA
+    //!
+    // @game doom
+    //
+    // Kafka topic to publish telemetry data to
+    //
+
+    CONFIG_VARIABLE_STRING(telemetry_kafka_topic),
+
+    //!
+    // @game doom
+    //
+    // Comma-separated list of Kafka brokers.
+    // (Example: "host-1:9092,host-2:9092")
+    //
+
+    CONFIG_VARIABLE_STRING(telemetry_kafka_brokers),
+#endif
 };
 
 static default_collection_t doom_defaults =

@@ -23,8 +23,13 @@
 
 static int telemetry_enabled = 1;
 static int telemetry_mode = FILE_MODE;
-static char *telemetry_host = "localhost";
-static int telemetry_port = 10666;
+
+static char *udp_host = "localhost";
+static int udp_port = 10666;
+
+// Kafka-esque configs....not wrapped in ifdef's cause who cares
+static char *kafka_topic = "doom-telemetry";
+static char *kafka_brokers = "localhost:9092";
 
 void ConfigTelemetry(TXT_UNCAST_ARG(widget), void *user_data)
 {
@@ -35,17 +40,29 @@ void ConfigTelemetry(TXT_UNCAST_ARG(widget), void *user_data)
     TXT_SetWindowHelpURL(window, HELP_URL);
 
     TXT_AddWidgets(window,
-                   TXT_NewCheckBox("Enabled Telemetry", &telemetry_enabled),
+                   TXT_NewCheckBox("Enable Telemetry", &telemetry_enabled),
                    TXT_NewSeparator("Telemetry Mode"),
                    TXT_NewRadioButton("File system", &telemetry_mode, FILE_MODE),
                    TXT_NewRadioButton("UDP", &telemetry_mode, UDP_MODE),
+#ifdef HAVE_LIBRDKAFKA
+                   TXT_NewRadioButton("Kafka", &telemetry_mode, KAFKA_MODE),
+#endif
                    TXT_NewSeparator("UDP (IPv4 Only)"),
-                   TXT_NewHorizBox(TXT_NewLabel(" Host/IP:  "),
-                                   TXT_NewInputBox(&telemetry_host, 50),
+                   TXT_NewHorizBox(TXT_NewLabel("Host/IP:  "),
+                                   TXT_NewInputBox(&udp_host, 50),
                                    NULL),
-                   TXT_NewHorizBox(TXT_NewLabel("UDP port:  "),
-                                   TXT_NewIntInputBox(&telemetry_port, 6),
+                   TXT_NewHorizBox(TXT_NewLabel("   Port:  "),
+                                   TXT_NewIntInputBox(&udp_port, 6),
                                    NULL),
+#ifdef HAVE_LIBRDKAFKA
+                   TXT_NewSeparator("Kafka"),
+                   TXT_NewHorizBox(TXT_NewLabel("  Topic:  "),
+                                   TXT_NewInputBox(&kafka_topic, 50),
+                                   NULL),
+                   TXT_NewHorizBox(TXT_NewLabel("Brokers:  "),
+                                   TXT_NewInputBox(&kafka_brokers, 50),
+                                   NULL),
+#endif
                    NULL);
 }
 
@@ -53,6 +70,8 @@ void BindTelemetryVariables(void)
 {
     M_BindIntVariable("telemetry_enabled", &telemetry_enabled);
     M_BindIntVariable("telemetry_mode", &telemetry_mode);
-    M_BindStringVariable("telemetry_host", &telemetry_host);
-    M_BindIntVariable("telemetry_port", &telemetry_port);
+    M_BindStringVariable("telemetry_udp_host", &udp_host);
+    M_BindIntVariable("telemetry_udp_port", &udp_port);
+    M_BindStringVariable("telemetry_kafka_topic", &kafka_topic);
+    M_BindStringVariable("telemetry_kafka_brokers", &kafka_brokers);
 }
