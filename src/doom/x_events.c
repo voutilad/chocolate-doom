@@ -485,7 +485,8 @@ int X_InitTelemetry(void)
                 logger.write = writeUdpLog;
                 break;
             case KAFKA_MODE:
-                printf("X_InitTelemetry: kafka mode not yet available. Sorry!");
+                printf("X_InitTelemetry: Kafka mode not yet available. Disabling telemetry.\n");
+                telemetry_enabled = 0;
                 return 0;
             default:
                 I_Error("X_InitTelemetry: Unsupported telemetry mode (%d)", telemetry_mode);
