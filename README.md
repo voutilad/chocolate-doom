@@ -79,16 +79,17 @@ Sample output (produced by the test binary):
 ## Testing
 
 Right now I have a hacky manual test that I also use for Valgrind (on
-Linux) mostly. To build it, run the included shell script:
+Linux) mostly. To build it (and run it at the same time) run:
 
 ```bash
-[~/src/chocolate-doom/src]$ ./test.sh
+$ make check
 ```
 
-Then run the resulting executable:
+You can either use `make check` to run the test code or run the
+resulting executable directly:
 
 ```bash
-[~/src/choclate-doom/src]$ ./test_events
+$ ./src/doom/test_events
 ```
 
 You should see some console output:
@@ -125,7 +126,7 @@ X_StopTelemetry: shut down telemetry service
 
 If you want to use Valgrind to check for leaks, I suggest you run it
 on the `test_events` binary to focus testing primarily on my changes
-from the original chocoalate-doom source.
+from the original chocolate-doom source.
 
 ## Copyright and License
 

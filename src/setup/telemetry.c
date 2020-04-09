@@ -27,9 +27,10 @@ static int telemetry_mode = FILE_MODE;
 static char *udp_host = "localhost";
 static int udp_port = 10666;
 
-// Kafka-esque configs....not wrapped in ifdef's cause who cares
+#ifdef HAVE_LIBRDKAFKA
 static char *kafka_topic = "doom-telemetry";
 static char *kafka_brokers = "localhost:9092";
+#endif
 
 void ConfigTelemetry(TXT_UNCAST_ARG(widget), void *user_data)
 {
@@ -72,6 +73,8 @@ void BindTelemetryVariables(void)
     M_BindIntVariable("telemetry_mode", &telemetry_mode);
     M_BindStringVariable("telemetry_udp_host", &udp_host);
     M_BindIntVariable("telemetry_udp_port", &udp_port);
+#ifdef HAVE_LIBRDKAFKA
     M_BindStringVariable("telemetry_kafka_topic", &kafka_topic);
     M_BindStringVariable("telemetry_kafka_brokers", &kafka_brokers);
+#endif
 }

@@ -37,7 +37,7 @@ boolean D_IsIWADName(const char *name)
 
 int main()
 {
-    char* modes[] = { "1", "2", NULL };
+    char* modes[] = { "1", "2", "3", NULL };
     int i;
     player_t p;
     mobj_t m1, m2, mp;

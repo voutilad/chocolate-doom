@@ -206,6 +206,19 @@ net_query.c          net_query.h           \
 net_structrw.c       net_structrw.h        \
 z_native.c           z_zone.h
 
+TEST_FILES=                                \
+cJSON.c              cJSON.h               \
+i_timer.c            i_timer.h             \
+i_system.c           i_system.h            \
+m_argv.c             m_argv.h              \
+m_config.c           m_config.h            \
+m_misc.c             m_misc.h              \
+tables.c                                   \
+z_native.c           z_zone.h
+
+noinst_LIBRARIES = libtest.a
+libtest_a_SOURCES = $(TEST_FILES)
+
 if HAVE_WINDRES
 @PROGRAM_PREFIX@setup_SOURCES=$(SETUP_FILES) $(COMMON_SOURCE_FILES) setup-res.rc
 else
@@ -286,4 +299,3 @@ MUS2MID_SRC_FILES = mus2mid.c memio.c z_native.c i_system.c m_argv.c m_misc.c
 mus2mid : $(MUS2MID_SRC_FILES)
 	$(CC) -DSTANDALONE -I$(top_builddir) $(CFLAGS) @LDFLAGS@ \
               $(MUS2MID_SRC_FILES) -o $@
-
