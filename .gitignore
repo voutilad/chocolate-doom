@@ -66,3 +66,4 @@ GTAGS
 test_events
 
 /src/test_events.dSYM/
+*.trs

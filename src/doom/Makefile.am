@@ -74,3 +74,9 @@ st_stuff.c         st_stuff.h   \
 wi_stuff.c         wi_stuff.h   \
 x_events.c         x_events.h
 
+check_PROGRAMS = test_events
+TESTS = $(check_PROGRAMS)
+
+test_events_SOURCES = x_events.c x_events_test.c
+test_events_CFLAGS = -DTEST -I$(top_srcdir) -I$(top_srcdir)/src
+test_events_LDADD = ../libtest.a @LDFLAGS@ @SDLNET_LIBS@ @RDKAFKA_LIBS@

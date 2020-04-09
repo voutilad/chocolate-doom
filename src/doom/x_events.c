@@ -14,6 +14,8 @@
 // DESCRIPTION:
 //	Event logging framework and utils
 //
+#include "config.h"
+
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -21,8 +23,13 @@
 #include <time.h>
 #include <sys/stat.h>
 
+#include <SDL2/SDL_net.h>
+
+#ifdef HAVE_LIBRDKAFKA
+#include <librdkafka/rdkafka.h>
+#endif
+
 #include "cJSON.h"
-#include "SDL_net.h"
 
 #include "m_config.h"
 #include "m_fixed.h"
@@ -60,11 +67,16 @@ static int log_fd = -1;
 
 ///// UDP Logger
 // UDP state
-static UDPsocket socket;
+static UDPsocket sock;
 // Target to broadcast packets to
 static IPaddress addr;
 // Re-useable packet instance since we only send 1 at a time
 static UDPpacket *packet = NULL;
+
+#ifdef HAVE_LIBRDKAFKA
+static rd_kafka_conf_t *kafka_conf;
+static rd_kafka_t *producer;
+#endif
 
 // Convert an event type enum into a string representation
 const char* eventTypeName(xeventtype_t ev)
@@ -400,8 +412,8 @@ int initUdpLog(void)
         I_Error("X_InitTelemetry: failed to initialize SDL_Net?!");
     }
 
-    socket = SDLNet_UDP_Open(0);
-    if (socket == NULL)
+    sock = SDLNet_UDP_Open(0);
+    if (sock == NULL)
     {
         I_Error("X_InitTelemetry: could not bind a port for outbound UDP!?");
     }
@@ -433,9 +445,9 @@ int closeUdpLog(void)
         SDLNet_FreePacket(packet);
     }
 
-    if (socket != NULL)
+    if (sock != NULL)
     {
-        SDLNet_UDP_Close(socket);
+        SDLNet_UDP_Close(sock);
     }
 
     return 0;
@@ -451,7 +463,7 @@ int writeUdpLog(char *msg, size_t len)
     }
     packet->len = len;
 
-    if (SDLNet_UDP_Send(socket, -1, packet) != 1)
+    if (SDLNet_UDP_Send(sock, -1, packet) != 1)
     {
         printf("XXX: something wrong with sending udp packet?");
     }
@@ -459,6 +471,55 @@ int writeUdpLog(char *msg, size_t len)
     // contains total bytes sent
     return packet->status;
 }
+
+//////////////////////////////////////////////////////////////////////////////
+//////// KAFKA PUBLISHER FUNCTIONS
+#ifdef HAVE_LIBRDKAFKA
+
+static void dr_msg_cb(rd_kafka_t *rk,
+                      const rd_kafka_message_t *rkmessage,
+                      void *opaque)
+{
+    return;
+}
+
+int initKafkaPublisher(void)
+{
+    printf("X_InitTelemetry: starting Kafka producer using librdkafka v%s\n",
+           rd_kafka_version_str());
+    return 0;
+}
+
+int closeKafkaPublisher(void)
+{
+    return 0;
+}
+
+int writeKafkaLog(char *msg, size_t len)
+{
+    return 0;
+}
+
+#else // no kafka
+
+int initKafkaPublisher(void)
+{
+    printf("X_InitTelemetry: kafka mode enabled, but not compiled in!\n");
+    telemetry_enabled = 0;
+
+    return 0;
+}
+
+int closeKafkaPublisher(void)
+{
+    return 0;
+}
+
+int writeKafkaLog(char *msg, size_t len)
+{
+    return 1;
+}
+#endif
 
 //////////////////////////////////////////////////////////////////////////////
 //////// Basic framework housekeeping
@@ -485,9 +546,11 @@ int X_InitTelemetry(void)
                 logger.write = writeUdpLog;
                 break;
             case KAFKA_MODE:
-                printf("X_InitTelemetry: Kafka mode not yet available. Disabling telemetry.\n");
-                telemetry_enabled = 0;
-                return 0;
+                logger.type = KAFKA_MODE;
+                logger.init = initKafkaPublisher;
+                logger.close = closeKafkaPublisher;
+                logger.write = writeKafkaLog;
+                break;
             default:
                 I_Error("X_InitTelemetry: Unsupported telemetry mode (%d)", telemetry_mode);
         }
