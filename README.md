@@ -33,8 +33,8 @@ For instance, run the autogen script:
 $ ./autogen.sh
 ```
 
-> Note: if building on Win10 64-bit, I recommend running `./autogen
-> --host=i686-w64-mingw32`
+> Note: if building on Win10 64-bit, I recommend running:
+> `./autogen.sh --host=i686-w64-mingw32`
 
 Then just build:
 
