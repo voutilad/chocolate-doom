@@ -85,13 +85,13 @@ typedef struct {
 int X_InitTelemetry(void);
 void X_StopTelemetry(void);
 
-void X_LogStart(int ep, int level, skill_t mode);
-void X_LogExit(mobj_t *actor);
+void X_LogStart(player_t *player, int ep, int level, skill_t mode);
+void X_LogExit(player_t *player);
 
 void X_LogMove(mobj_t *actor);
 
-void X_LogEnemyKilled(mobj_t *victim);
-void X_LogPlayerDied(mobj_t *killer);
+void X_LogEnemyKilled(player_t *player, mobj_t *victim);
+void X_LogPlayerDied(player_t *player, mobj_t *killer);
 
 void X_LogTargeted(mobj_t *actor, mobj_t *target);
 void X_LogPlayerAttack(mobj_t *player, weapontype_t weapon);

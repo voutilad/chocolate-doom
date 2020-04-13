@@ -701,7 +701,7 @@ P_CrossSpecialLine
       case 52:
 	// EXIT!
 	G_ExitLevel ();
-        X_LogExit(thing);
+        if (thing->player) X_LogExit(thing->player);
 	break;
 
       case 53:
@@ -785,7 +785,7 @@ P_CrossSpecialLine
       case 124:
 	// Secret EXIT
 	G_SecretExitLevel ();
-        X_LogExit(thing);
+        if (thing->player) X_LogExit(thing->player);
 	break;
 
       case 125:

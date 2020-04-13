@@ -721,8 +721,8 @@ P_KillMobj
 	target->flags &= ~MF_SOLID;
 	target->player->playerstate = PST_DEAD;
 
-	X_LogPlayerDied(source);
-	P_DropWeapon (target->player);
+	X_LogPlayerDied(target->player, source);
+	P_DropWeapon(target->player);
 
 	if (target->player == &players[consoleplayer]
 	    && automapactive)
@@ -732,10 +732,11 @@ P_KillMobj
 	    AM_Stop ();
 	}
 
-    } else {
-		// If the dying actor is not a player
-		X_LogEnemyKilled(target);
-	}
+    } else
+    {
+        // If the dying actor is not a player
+        X_LogEnemyKilled(&players[consoleplayer], target);
+    }
 
     if (target->health < -target->info->spawnhealth
 	&& target->info->xdeathstate)
