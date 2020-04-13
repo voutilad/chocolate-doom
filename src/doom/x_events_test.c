@@ -46,6 +46,7 @@ int main()
     m1.z = 0;
     m1.angle = 180;
     m1.type = MT_SHOTGUY;
+    m1.health = 25;
     m1.player = NULL;
 
     m2.x = 11;
@@ -53,6 +54,7 @@ int main()
     m2.z = 1;
     m2.angle = 180;
     m2.type = MT_BARREL;
+    m2.health = 10;
     m2.player = NULL;
 
     mp.x = 12;
@@ -61,6 +63,8 @@ int main()
     mp.angle = 180;
     mp.player = &p;
     p.mo = &mp;
+    p.health = 10;
+    p.armorpoints = 20;
 
 #ifdef _WIN32
     SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE),
@@ -86,7 +90,7 @@ int main()
             return -1;
         }
         printf("...log start\n");
-        X_LogStart(69, 69, 1);
+        X_LogStart(&p, 69, 69, 1);
 
         printf("...log armor\n");
         X_LogArmorPickup(p.mo, 69);
@@ -102,14 +106,13 @@ int main()
         X_LogTargeted(&m1, &m2);
 
         printf("...log enemy killed\n");
-        X_LogEnemyKilled(&m1);
+        X_LogEnemyKilled(&p, &m1);
 
         printf("...log player move\n");
         X_LogMove(p.mo);
 
-        m1.target = &mp;
         printf("...log player died\n");
-        X_LogPlayerDied(&m1);
+        X_LogPlayerDied(&p, &m1);
 
         printf("...stop\n");
         X_StopTelemetry();

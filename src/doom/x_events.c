@@ -247,10 +247,13 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
         if (ev->actor->player)
         {
             cJSON_AddStringToObject(actor, "type", "player");
+            cJSON_AddNumberToObject(actor, "health", ev->actor->player->health);
+            cJSON_AddNumberToObject(actor, "armor", ev->actor->player->armorpoints);
             cJSON_AddNumberToObject(actor, "id", (uintptr_t) ev->actor);
         } else
         {
             cJSON_AddStringToObject(actor, "type", enemyTypeName(ev->actor));
+            cJSON_AddNumberToObject(actor, "health", ev->actor->health);
             cJSON_AddNumberToObject(actor, "id", (uintptr_t) ev->actor);
         }
         cJSON_AddItemToObject(json, "actor", actor);
@@ -268,10 +271,13 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
         if (ev->target->player)
         {
             cJSON_AddStringToObject(target, "type", "player");
+            cJSON_AddNumberToObject(target, "health", ev->target->player->health);
+            cJSON_AddNumberToObject(target, "armor", ev->target->player->armorpoints);
             cJSON_AddNumberToObject(target, "id", (uintptr_t) ev->target);
         } else
         {
             cJSON_AddStringToObject(target, "type", enemyTypeName(ev->target));
+            cJSON_AddNumberToObject(target, "health", ev->target->health);
             cJSON_AddNumberToObject(target, "id", (uintptr_t) ev->target);
         }
         cJSON_AddItemToObject(json, "target", target);
@@ -628,7 +634,7 @@ void X_BindTelemetryVariables(void)
 
 ///////// Basic start/stop/movement
 
-void X_LogStart(int ep, int level, skill_t mode)
+void X_LogStart(player_t *player, int ep, int level, skill_t mode)
 {
     cJSON *json = cJSON_CreateObject();
     if (!json)
@@ -639,14 +645,14 @@ void X_LogStart(int ep, int level, skill_t mode)
     cJSON_AddNumberToObject(json, "level", level);
     cJSON_AddNumberToObject(json, "difficulty", mode);
 
-    xevent_t ev = { e_start_level, NULL, NULL };
+    xevent_t ev = { e_start_level, player->mo, NULL };
     logEventWithExtra(&ev, "level", json);
     cJSON_Delete(json);
 }
 
-void X_LogExit(mobj_t *actor)
+void X_LogExit(player_t *player)
 {
-    xevent_t ev = { e_end_level, actor, NULL };
+    xevent_t ev = { e_end_level, player->mo, NULL };
     logEvent(&ev);
 }
 
@@ -664,15 +670,15 @@ void X_LogSectorCrossing(mobj_t *actor)
 
 ////////// Death :-(
 
-void X_LogEnemyKilled(mobj_t *victim)
+void X_LogEnemyKilled(player_t *player, mobj_t *victim)
 {
-    xevent_t ev = { e_killed, victim, NULL };
+    xevent_t ev = { e_killed, player->mo, victim };
     logEvent(&ev);
 }
 
-void X_LogPlayerDied(mobj_t *killer)
+void X_LogPlayerDied(player_t *player, mobj_t *killer)
 {
-    xevent_t ev = { e_killed, killer, killer->target };
+    xevent_t ev = { e_killed, killer, player->mo };
     logEvent(&ev);
 }
 

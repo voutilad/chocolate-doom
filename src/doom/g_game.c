@@ -656,7 +656,7 @@ void G_DoLoadLevel (void)
     }
 
     P_SetupLevel (gameepisode, gamemap, 0, gameskill);
-    X_LogStart(gameepisode, gamemap, gameskill);
+    X_LogStart(&players[consoleplayer], gameepisode, gamemap, gameskill);
 
     displayplayer = consoleplayer;		// view the guy you are playing
     gameaction = ga_nothing;
