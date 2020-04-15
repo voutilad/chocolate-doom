@@ -263,10 +263,19 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
     if (ev->target != NULL)
     {
         target = cJSON_CreateObject();
-        if (target == NULL)
+        pos = cJSON_CreateObject();
+        if (target == NULL || pos == NULL)
         {
-            I_Error("unable to create target JSON object?!");
+            I_Error("unable to create target/position JSON object(s)?!");
         }
+
+        cJSON_AddNumberToObject(pos, "x", ev->target->x);
+        cJSON_AddNumberToObject(pos, "y", ev->target->y);
+        cJSON_AddNumberToObject(pos, "z", ev->target->z);
+        cJSON_AddNumberToObject(pos, "angle", ev->target->angle);
+        cJSON_AddNumberToObject(pos, "subsector",
+                                (uintptr_t) guessActorLocation(ev->target));
+        cJSON_AddItemToObject(target, "position", pos);
 
         if (ev->target->player)
         {
