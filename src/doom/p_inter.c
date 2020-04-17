@@ -913,7 +913,8 @@ P_DamageMobj
 
     // do the damage
     target->health -= damage;
-	X_LogHit(source, target, damage);
+    X_LogHit(source, target, damage);
+
     if (target->health <= 0)
     {
 	P_KillMobj (source, target);
