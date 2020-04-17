@@ -61,6 +61,12 @@ static Logger logger = { -1, NULL, NULL, NULL };
 // Used to prevent constant malloc when printing json
 static char* jsonbuf = NULL;
 
+// Global ordered event counter, yes this will wrap, but the counter plus
+// the frame tic should be enough info for a consuming system to properly
+// order events we emit. Also, since it's assumed the code that accesses
+// the counter is single-threaded, we don't attempt to deal with races.
+static uint counter = 0;
+
 ///// FileSystem Logger
 // reference to event log file
 static int log_fd = -1;
@@ -212,6 +218,7 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
         cJSON_AddItemReferenceToObject(json, key, extra);
     }
 
+    cJSON_AddNumberToObject(json, "counter", counter++);
     cJSON_AddStringToObject(json, "type", eventTypeName(ev->ev_type));
 
     // Doom calls frames "tics". We'll track both time and tics.
@@ -585,6 +592,9 @@ int X_InitTelemetry(void)
         {
             I_Error("X_InitTelemetry: failed to initialize telemetry mode!?");
         }
+
+        // reset counter
+        counter = 0;
     }
 
     return logger.type;
@@ -620,6 +630,7 @@ void X_StopTelemetry(void)
         logger.close = NULL;
         logger.write = NULL;
 
+        printf("X_StopTelemetry: total events sent is %d\n", counter);
         printf("X_StopTelemetry: shut down telemetry service\n");
     }
 }
