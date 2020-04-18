@@ -80,8 +80,8 @@ static IPaddress addr;
 static UDPpacket *packet = NULL;
 
 #ifdef HAVE_LIBRDKAFKA
-static rd_kafka_conf_t *kafka_conf;
-static rd_kafka_t *producer;
+static rd_kafka_t *kafka_producer;
+static char kafka_errbuf[512];
 #endif
 
 // Convert an event type enum into a string representation
@@ -502,24 +502,101 @@ static void dr_msg_cb(rd_kafka_t *rk,
                       const rd_kafka_message_t *rkmessage,
                       void *opaque)
 {
-    return;
+    if (rkmessage->err)
+    {
+        printf("X_Telemetry: kafka message dlivery failed, %s\n",
+               rd_kafka_err2str(rkmessage->err));
+    }
 }
 
 int initKafkaPublisher(void)
 {
+    rd_kafka_conf_t *kafka_conf;
     printf("X_InitTelemetry: starting Kafka producer using librdkafka v%s\n",
            rd_kafka_version_str());
+
+    memset(kafka_errbuf, 0, sizeof(kafka_errbuf));
+
+    kafka_conf = rd_kafka_conf_new();
+    if (rd_kafka_conf_set(kafka_conf, "bootstrap.servers",
+                          kafka_brokers, kafka_errbuf,
+                          sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
+    {
+        I_Error("X_InitTelemetry: could not set Kafka brokers, %s",
+                kafka_errbuf);
+    }
+
+    rd_kafka_conf_set_dr_msg_cb(kafka_conf, dr_msg_cb);
+
+    kafka_producer = rd_kafka_new(RD_KAFKA_PRODUCER, kafka_conf, kafka_errbuf,
+                                  sizeof(kafka_errbuf));
+    if (!kafka_producer)
+    {
+        I_Error("X_InitTelemetry: could not create kafka producer, %s",
+                kafka_errbuf);
+    }
     return 0;
 }
 
 int closeKafkaPublisher(void)
 {
+    int flush_timeout_s = 15;
+    int unflushed = 0;
+
+    printf("X_StopTelemetry: shutting down Kafka producer");
+
+    if (!kafka_producer)
+    {
+        I_Error("X_StopTelemetry: Kafka producer does not appear initialized!");
+    }
+
+    // be polite and flush
+    printf("X_StopTelemetry: waiting %ds for Kafka output queue to empty...\n",
+           flush_timeout_s);
+    rd_kafka_flush(kafka_producer, flush_timeout_s * 1000);
+
+    unflushed = rd_kafka_outq_len(kafka_producer);
+    if (unflushed > 0)
+    {
+        printf("X_StopTelemetry: could not deliver %d message(s)\n",
+               unflushed);
+    }
+
+    // blow it up!
+    rd_kafka_destroy(kafka_producer);
+    kafka_producer = NULL;
+
     return 0;
 }
 
 int writeKafkaLog(char *msg, size_t len)
 {
-    return 0;
+    rd_kafka_resp_err_t err;
+    err = rd_kafka_producev(kafka_producer,
+                            RD_KAFKA_V_TOPIC(kafka_topic),
+                            RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
+                            RD_KAFKA_V_VALUE(msg, len),
+                            RD_KAFKA_V_OPAQUE(NULL),
+                            RD_KAFKA_V_END);
+    if (err)
+    {
+        if (err == RD_KAFKA_RESP_ERR__QUEUE_FULL)
+        {
+            // queue full...for now we just shrug
+            printf("X_Telemetry: internal Kafka oubound queue is full :-(\n");
+        }
+        else
+        {
+            printf("X_Telemetry: unknown kafka issue... %s\n",
+                   rd_kafka_err2str(err));
+        }
+
+        return 0;
+    }
+
+    // XXX: this is 100% a lie as technically can't guarantee anything was
+    // transmitted since rdkafka does so asynchronously.
+    return len;
 }
 
 #else // no kafka
