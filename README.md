@@ -1,4 +1,5 @@
 # Chocolate Doom w/ Telemetry
+![Compile and Check](https://github.com/voutilad/chocolate-doom/workflows/Compile%20and%20Check/badge.svg?branch=personal)
 
 This is an experimental fork of Chocolate Doom with the aim to
 introduce telemetry output for observing the behavior of both player
