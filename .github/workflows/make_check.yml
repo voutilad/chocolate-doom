@@ -2,9 +2,9 @@ name: Compile and Check
 
 on:
   push:
-    branches: [ master ]
+    branches: [ personal ]
   pull_request:
-    branches: [ master ]
+    branches: [ personal ]
 
 jobs:
   build:
