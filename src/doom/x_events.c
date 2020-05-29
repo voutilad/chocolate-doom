@@ -47,6 +47,12 @@
 static int telemetry_enabled = 0;
 static int telemetry_mode = FILE_MODE;
 
+// 12-byte session id string
+#define SESSION_ID_LEN 12
+// Actual length in characters plus null-byte when used as string
+#define SESSION_ID_CHAR_LEN (SESSION_ID_LEN * 2) + 1
+static char session_id[SESSION_ID_CHAR_LEN];
+
 static char *udp_host = "localhost";
 static int udp_port = 10666;
 
@@ -175,7 +181,7 @@ subsector_t test_subsector = { &test_sector, 0, 0 };
 #endif
 
 // Try to determine the location of an Actor
-subsector_t* guessActorLocation(mobj_t *actor)
+static subsector_t* guessActorLocation(mobj_t *actor)
 {
 #ifdef TEST
     return &test_subsector;
@@ -184,13 +190,38 @@ subsector_t* guessActorLocation(mobj_t *actor)
 #endif
 }
 
+static void init_session_id(void)
+{
+    int fd;
+    ssize_t cnt;
+    char buf[SESSION_ID_LEN];
+
+    fd = open("/dev/urandom", O_RDONLY);
+    if (fd < 0)
+    {
+        I_Error("unable to open /dev/urandom?!");
+    }
+
+    cnt = read(fd, &buf, sizeof(buf));
+    if (cnt != sizeof(buf))
+    {
+        I_Error("failed to fill session id buf!");
+    }
+
+    // This is a bit YOLO but...whatever
+    for (int i=0; i < cnt && i < SESSION_ID_LEN; i++) {
+        snprintf(&session_id[i * 2], 3, "%02x", (unsigned char) buf[i]);
+    }
+}
+
+
 //////////////////////////////////////////////////////////////////////////////
 //// JSON wranglin' and wrastlin'
 
 // The primary logging logic, composes a buffer to send to the Logger.
 // Optionally takes a keyword and additional JSON type to add into the
 // resulting JSON Object serialized into the buffer.
-void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
+static void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
 {
     int bytes = 0;
     cJSON* json = NULL;
@@ -219,6 +250,7 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
     }
 
     cJSON_AddNumberToObject(json, "counter", counter++);
+    cJSON_AddStringToObject(json, "session", session_id);
     cJSON_AddStringToObject(json, "type", eventTypeName(ev->ev_type));
 
     // Doom calls frames "tics". We'll track both time and tics.
@@ -332,7 +364,7 @@ void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
 }
 
 // Helper function for adding a single Number entry into the JSON Object
-void logEventWithExtraNumber(xevent_t *ev, const char* key, int value)
+static void logEventWithExtraNumber(xevent_t *ev, const char* key, int value)
 {
     cJSON *num = cJSON_CreateNumber(value);
     if (num == NULL)
@@ -344,7 +376,7 @@ void logEventWithExtraNumber(xevent_t *ev, const char* key, int value)
 }
 
 // Simplest logging routine to be called by the exposed log functions
-void logEvent(xevent_t *ev)
+static void logEvent(xevent_t *ev)
 {
     logEventWithExtra(ev, NULL, NULL);
 }
@@ -354,7 +386,7 @@ void logEvent(xevent_t *ev)
 
 // Initialize a doom-<timestamp-in-millis>.log file to write events into,
 // setting a globally tracked file descriptor
-int initFileLog(void)
+static int initFileLog(void)
 {
     time_t t;
     char* filename;
@@ -399,7 +431,7 @@ int initFileLog(void)
 }
 
 // Try to close an open file descriptor, making sure all data is flushed out
-int closeFileLog(void)
+static int closeFileLog(void)
 {
     if (close(log_fd) != 0)
     {
@@ -422,7 +454,7 @@ int writeFileLog(char* msg, size_t len)
 //////// UDP LOGGER FUNCTIONS
 
 // Initialize SDL_Net even though it may be initialized elsewhere in Doom.
-int initUdpLog(void)
+static int initUdpLog(void)
 {
     const SDL_version *link_version = SDLNet_Linked_Version();
 
@@ -460,7 +492,7 @@ int initUdpLog(void)
 }
 
 // TODO: cleanup any bufs?
-int closeUdpLog(void)
+static int closeUdpLog(void)
 {
     if (packet != NULL)
     {
@@ -476,7 +508,7 @@ int closeUdpLog(void)
 }
 
 // Try to create and broadcast a UDPpacket;
-int writeUdpLog(char *msg, size_t len)
+static int writeUdpLog(char *msg, size_t len)
 {
     // We mutate the same UDPpacket, updating the payload in .data and the .len
     if (!M_StringCopy((char*)packet->data, msg, len + 1))
@@ -509,7 +541,7 @@ static void dr_msg_cb(rd_kafka_t *rk,
     }
 }
 
-int initKafkaPublisher(void)
+static int initKafkaPublisher(void)
 {
     rd_kafka_conf_t *kafka_conf;
     printf("X_InitTelemetry: starting Kafka producer using librdkafka v%s\n",
@@ -538,7 +570,7 @@ int initKafkaPublisher(void)
     return 0;
 }
 
-int closeKafkaPublisher(void)
+static int closeKafkaPublisher(void)
 {
     int flush_timeout_s = 15;
     int unflushed = 0;
@@ -569,7 +601,7 @@ int closeKafkaPublisher(void)
     return 0;
 }
 
-int writeKafkaLog(char *msg, size_t len)
+static int writeKafkaLog(char *msg, size_t len)
 {
     rd_kafka_resp_err_t err;
     err = rd_kafka_producev(kafka_producer,
@@ -670,6 +702,9 @@ int X_InitTelemetry(void)
             I_Error("X_InitTelemetry: failed to initialize telemetry mode!?");
         }
 
+        // Initialize a new session id
+        init_session_id();
+
         // reset counter
         counter = 0;
     }
@@ -733,6 +768,7 @@ void X_BindTelemetryVariables(void)
 
 void X_LogStart(player_t *player, int ep, int level, skill_t mode)
 {
+    xevent_t ev = { e_start_level, player->mo, NULL };
     cJSON *json = cJSON_CreateObject();
     if (!json)
     {
@@ -742,7 +778,6 @@ void X_LogStart(player_t *player, int ep, int level, skill_t mode)
     cJSON_AddNumberToObject(json, "level", level);
     cJSON_AddNumberToObject(json, "difficulty", mode);
 
-    xevent_t ev = { e_start_level, player->mo, NULL };
     logEventWithExtra(&ev, "level", json);
     cJSON_Delete(json);
 }
