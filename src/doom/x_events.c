@@ -29,6 +29,10 @@
 #include <librdkafka/rdkafka.h>
 #endif
 
+#ifdef HAVE_LIBTLS
+#include <tls.h>
+#endif
+
 #include "cJSON.h"
 
 #include "m_config.h"
@@ -84,6 +88,10 @@ static UDPsocket sock;
 static IPaddress addr;
 // Re-useable packet instance since we only send 1 at a time
 static UDPpacket *packet = NULL;
+
+#ifdef HAVE_LIBTLS
+static struct tls_config *cfg;
+#endif
 
 #ifdef HAVE_LIBRDKAFKA
 static rd_kafka_t *kafka_producer;

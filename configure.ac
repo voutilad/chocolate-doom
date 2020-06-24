@@ -89,10 +89,16 @@ AS_IF([test "x$with_librdkafka" != xno], [
     ])
 ])
 
+# check for libtls
+AC_SEARCH_LIBS([tls_client], [tls],
+    [AC_DEFINE([HAVE_LIBTLS], [1], [libtls installed])],
+    [AC_MSG_FAILURE([Could not find libtls?! Are you not on OpenBSD?])]
+)
+
 # TODO: We currently link everything against libraries that don't need it.
 # Use the specific library CFLAGS/LIBS variables instead of setting them here.
-CFLAGS="$CFLAGS $SDL_CFLAGS ${SAMPLERATE_CFLAGS:-} ${PNG_CFLAGS:-} ${RDKAFKA_CFLAGS:-}"
-LDFLAGS="$LDFLAGS $SDL_LIBS ${SAMPLERATE_LIBS:-} ${PNG_LIBS:-} ${RDKAFKA_LIBS:-}"
+CFLAGS="$CFLAGS $SDL_CFLAGS ${SAMPLERATE_CFLAGS:-} ${PNG_CFLAGS:-} ${RDKAFKA_CFLAGS:-} ${TLS_CFLAGS:-}"
+LDFLAGS="$LDFLAGS $SDL_LIBS ${SAMPLERATE_LIBS:-} ${PNG_LIBS:-} ${RDKAFKA_LIBS:-} ${TLS_LIBS:-}"
 AC_CHECK_LIB(m, log)
 
 AC_CHECK_HEADERS([dirent.h linux/kd.h dev/isa/spkrio.h dev/speaker/speaker.h])
