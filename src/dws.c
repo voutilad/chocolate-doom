@@ -29,6 +29,10 @@
 #include <sys/socket.h>
 #include <tls.h>
 
+#ifdef HAVE_LIB_BSD
+#include <bsd/bsd.h>
+#endif
+
 #include "dws.h"
 
 // It's ludicrous to think we'd have a server handshake response larger
