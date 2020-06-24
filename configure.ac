@@ -133,19 +133,35 @@ AS_IF([test "x$with_librdkafka" != xno], [
     ])
 ])
 
-# check for libtls
-AC_SEARCH_LIBS([tls_client], [tls],
-    [AC_DEFINE([HAVE_LIBTLS], [1], [libtls installed])],
-    [PKG_CHECK_MODULES(TLS, tls >= 3.1.0,
-            [AC_DEFINE([HAVE_LIBTLS], [1], [libtls installed])],
-            [AC_MSG_WARN([could not find libtls])]
+# check for libbsd if we can't find arc4random
+AC_CHECK_FUNC([arc4random], [],
+    [PKG_CHECK_MODULES(BSD, [libbsd-overlay >= 0.10.0],
+        [AC_DEFINE([HAVE_LIB_BSD], [1], [libbsd installed])],
+        [AC_MSG_FAILURE([could not find arc4random or libbsd])]
     )]
+)
+
+# check for libtls...look to pkg-config if it seems we might not be on OpenBSD
+PKG_CHECK_MODULES(TLS, [libtls >= 3.1.0],
+    [AC_DEFINE([HAVE_LIBTLS], [1], [libtls installed])],
+    [
+        # probably on OpenBSD or some place with libressl native?
+        AC_CHECK_LIB(tls, tls_client,
+            [
+                AC_DEFINE([HAVE_LIBTLS], [1], [libtls native found])
+                LDFLAGS="$LDFLAGS -ltls"
+            ],
+            [AC_MSG_FAILURE([could not find libtls from libressl!])]
+        )
+    ]
 )
 
 # TODO: We currently link everything against libraries that don't need it.
 # Use the specific library CFLAGS/LIBS variables instead of setting them here.
-CFLAGS="$CFLAGS $SDL_CFLAGS ${SAMPLERATE_CFLAGS:-} ${PNG_CFLAGS:-} ${RDKAFKA_CFLAGS:-} ${TLS_CFLAGS:-}"
-LDFLAGS="$LDFLAGS $SDL_LIBS ${SAMPLERATE_LIBS:-} ${PNG_LIBS:-} ${RDKAFKA_LIBS:-} ${TLS_LIBS:-}"
+CFLAGS="$CFLAGS $SDL_CFLAGS ${SAMPLERATE_CFLAGS:-} ${PNG_CFLAGS:-}"
+CFLAGS="$CFLAGS ${RDKAFKA_CFLAGS:-} ${TLS_CFLAGS:-} ${BSD_CFLAGS:-}"
+LDFLAGS="$LDFLAGS $SDL_LIBS ${SAMPLERATE_LIBS:-} ${PNG_LIBS:-}"
+LDFLAGS="$LDFLAGS ${RDKAFKA_LIBS:-} ${TLS_LIBS:-} ${BSD_LIBS:-}"
 AC_CHECK_LIB(m, log)
 
 AC_CHECK_HEADERS([dirent.h linux/kd.h dev/isa/spkrio.h dev/speaker/speaker.h])
