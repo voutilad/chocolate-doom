@@ -30,6 +30,7 @@
 #define FILE_MODE       1
 #define UDP_MODE        2
 #define KAFKA_MODE      3
+#define WEBSOCKET_MODE  4
 
 typedef enum
 {
