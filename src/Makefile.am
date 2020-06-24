@@ -117,7 +117,8 @@ w_file_posix.c                             \
 w_file_win32.c                             \
 w_merge.c            w_merge.h             \
 z_zone.c             z_zone.h              \
-cJSON.c              cJSON.h
+cJSON.c              cJSON.h               \
+dws.c                dws.h
 
 DEHACKED_SOURCE_FILES =                    \
 deh_defs.h                                 \

@@ -31,6 +31,7 @@
 
 #ifdef HAVE_LIBTLS
 #include <tls.h>
+#include "dws.h"
 #endif
 
 #include "cJSON.h"
@@ -60,8 +61,10 @@ static char session_id[SESSION_ID_CHAR_LEN];
 static char *udp_host = "localhost";
 static int udp_port = 10666;
 
+#ifdef HAVE_LIBRDKAFKA
 static char *kafka_topic = "doom-telemetry";
 static char *kafka_brokers = "localhost:9092";
+#endif
 
 #define ASSERT_TELEMETRY_ON(...) if (!telemetry_enabled) return __VA_ARGS__
 
@@ -91,6 +94,7 @@ static UDPpacket *packet = NULL;
 
 #ifdef HAVE_LIBTLS
 static struct tls_config *cfg;
+static struct websocket ws;
 #endif
 
 #ifdef HAVE_LIBRDKAFKA
@@ -660,6 +664,52 @@ int writeKafkaLog(char *msg, size_t len)
 }
 #endif
 
+#ifdef HAVE_LIBTLS
+// should really be HAVE_DWS or something...
+
+int initWebsocketPublisher(void)
+{
+    int ret;
+
+    printf("X_InitTelemetry: websocket mode enabled\n");
+
+    memset(&ws, 0, sizeof(struct websocket));
+    ret = dumb_connect(&ws, "localhost", "8000");
+
+    if (ret)
+        I_Error("websocket connection failure");
+
+    ret = dumb_handshake(&ws, "localhost", "/");
+    if (ret)
+        I_Error("websocket handshake failure");
+
+    return 0;
+}
+
+int closeWebsocketPublisher(void)
+{
+    printf("X_StopTelemetry: shutting down websocket");
+
+    if (dumb_close(&ws))
+        I_Error("websocket close failure");
+
+    return 0;
+}
+
+int writeWebsocketLog(char *msg, size_t len)
+{
+    ssize_t sent;
+
+    sent = dumb_send(&ws, msg, len);
+    if (sent < 1) {
+        printf("DEBUG: dumb_send returned %d\n", sent);
+        I_Error("X_Telemetry: websocket failed send");
+    }
+
+    return sent;
+}
+#endif
+
 //////////////////////////////////////////////////////////////////////////////
 //////// Basic framework housekeeping
 
@@ -689,6 +739,12 @@ int X_InitTelemetry(void)
                 logger.init = initKafkaPublisher;
                 logger.close = closeKafkaPublisher;
                 logger.write = writeKafkaLog;
+                break;
+            case WEBSOCKET_MODE:
+                logger.type = WEBSOCKET_MODE;
+                logger.init = initWebsocketPublisher;
+                logger.close = closeWebsocketPublisher;
+                logger.write = writeWebsocketLog;
                 break;
             default:
                 I_Error("X_InitTelemetry: Unsupported telemetry mode (%d)", telemetry_mode);
