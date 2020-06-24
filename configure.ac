@@ -136,7 +136,10 @@ AS_IF([test "x$with_librdkafka" != xno], [
 # check for libtls
 AC_SEARCH_LIBS([tls_client], [tls],
     [AC_DEFINE([HAVE_LIBTLS], [1], [libtls installed])],
-    [AC_MSG_FAILURE([Could not find libtls?! Are you not on OpenBSD?])]
+    [PKG_CHECK_MODULES(TLS, tls >= 3.1.0,
+            [AC_DEFINE([HAVE_LIBTLS], [1], [libtls installed])],
+            [AC_MSG_WARN([could not find libtls])]
+    )]
 )
 
 # TODO: We currently link everything against libraries that don't need it.
