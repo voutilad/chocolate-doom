@@ -32,6 +32,12 @@ static char *kafka_topic = "doom-telemetry";
 static char *kafka_brokers = "localhost:9092";
 #endif
 
+#ifdef HAVE_TLS
+static char *ws_host = "localhost";
+static int ws_port = 8000;
+static int ws_tls_enabled = 1;
+#endif
+
 void ConfigTelemetry(TXT_UNCAST_ARG(widget), void *user_data)
 {
     txt_window_t *window;
@@ -47,6 +53,9 @@ void ConfigTelemetry(TXT_UNCAST_ARG(widget), void *user_data)
                    TXT_NewRadioButton("UDP", &telemetry_mode, UDP_MODE),
 #ifdef HAVE_LIBRDKAFKA
                    TXT_NewRadioButton("Kafka", &telemetry_mode, KAFKA_MODE),
+#endif
+#ifdef HAVE_TLS
+                   TXT_NewRadioButton("Websockets", &telemetry_mode, WEBSOCKET_MODE);
 #endif
                    TXT_NewSeparator("UDP (IPv4 Only)"),
                    TXT_NewHorizBox(TXT_NewLabel("Host/IP:  "),
@@ -76,5 +85,10 @@ void BindTelemetryVariables(void)
 #ifdef HAVE_LIBRDKAFKA
     M_BindStringVariable("telemetry_kafka_topic", &kafka_topic);
     M_BindStringVariable("telemetry_kafka_brokers", &kafka_brokers);
+#endif
+#ifdef HAVE_TLS
+    M_BindStringVariable("telemetry_ws_host", &ws_host);
+    M_BindIntVariable("telemetry_ws_port", &ws_port);
+    M_BindIntVariable("telementry_ws_tls_enabled", &ws_tls_enabled);
 #endif
 }

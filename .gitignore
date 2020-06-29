@@ -67,3 +67,5 @@ test_events
 
 /src/test_events.dSYM/
 *.trs
+chocolate-doom.cfg
+default.cfg

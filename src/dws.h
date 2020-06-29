@@ -17,9 +17,16 @@
 #ifndef DWS_H
 #define	DWS_H
 
+#ifdef _WIN32
+#include <WinSock2.h>
+#include <WS2tcpip.h>
+#else
 #include <netinet/in.h>
-#include <sys/types.h>
 #include <netdb.h>
+#endif
+
+#include <sys/types.h>
+
 
 /*
  * We only do Binary frames. Why? You might ask...
