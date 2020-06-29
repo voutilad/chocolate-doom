@@ -93,7 +93,6 @@ static IPaddress addr;
 static UDPpacket *packet = NULL;
 
 #ifdef HAVE_LIBTLS
-static struct tls_config *cfg;
 static struct websocket ws;
 #endif
 
@@ -702,7 +701,7 @@ int writeWebsocketLog(char *msg, size_t len)
 
     sent = dumb_send(&ws, msg, len);
     if (sent < 1) {
-        printf("DEBUG: dumb_send returned %d\n", sent);
+        printf("DEBUG: dumb_send returned %zd\n", sent);
         I_Error("X_Telemetry: websocket failed send");
     }
 

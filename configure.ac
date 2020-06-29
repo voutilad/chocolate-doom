@@ -89,14 +89,6 @@ AS_IF([test "x$with_librdkafka" != xno], [
     ])
 ])
 
-# check for libbsd if we can't find arc4random
-AC_CHECK_FUNC([arc4random], [],
-    [PKG_CHECK_MODULES(BSD, [libbsd-overlay >= 0.10.0],
-        [AC_DEFINE([HAVE_LIB_BSD], [1], [libbsd installed])],
-        [AC_MSG_FAILURE([could not find arc4random or libbsd])]
-    )]
-)
-
 # check for libtls...look to pkg-config if it seems we might not be on OpenBSD
 PKG_CHECK_MODULES(TLS, [libtls >= 3.1.0],
     [AC_DEFINE([HAVE_LIBTLS], [1], [libtls installed])],
