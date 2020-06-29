@@ -89,14 +89,6 @@ AS_IF([test "x$with_librdkafka" != xno], [
     ])
 ])
 
-# check for libbsd if we can't find arc4random
-AC_CHECK_FUNC([arc4random], [],
-    [PKG_CHECK_MODULES(BSD, [libbsd-overlay >= 0.10.0],
-        [AC_DEFINE([HAVE_LIB_BSD], [1], [libbsd installed])],
-        [AC_MSG_FAILURE([could not find arc4random or libbsd])]
-    )]
-)
-
 # check for libtls...look to pkg-config if it seems we might not be on OpenBSD
 PKG_CHECK_MODULES(TLS, [libtls >= 3.1.0],
     [AC_DEFINE([HAVE_LIBTLS], [1], [libtls installed])],
@@ -107,7 +99,16 @@ PKG_CHECK_MODULES(TLS, [libtls >= 3.1.0],
                 AC_DEFINE([HAVE_LIBTLS], [1], [libtls native found])
                 LDFLAGS="$LDFLAGS -ltls"
             ],
-            [AC_MSG_FAILURE([could not find libtls from libressl!])]
+            [
+                #last chance...are we on msys2?
+                AC_CHECK_LIB(libretls, tls_client,
+		            [
+                        AC_DEFINE([HAVE_LIBTLS], [1], [liblibretls found])
+                        LDFLAGS="$LDFLAGS -llibretls"
+                    ],
+                    [AC_MSG_WARN([could not find libtls in any form!])]
+                )
+            ]
         )
     ]
 )
@@ -133,6 +134,7 @@ AC_CHECK_LIB(amd64, amd64_iopl)
 case "$host" in
   *-*-mingw* | *-*-cygwin* | *-*-msvc* )
     AC_CHECK_TOOL(WINDRES, windres, )
+    LDFLAGS="$LDFLAGS -lws2_32"
     ;;
   *)
     WINDRES=

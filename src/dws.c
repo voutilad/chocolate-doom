@@ -14,24 +14,31 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#define _CRT_RAND_S
+#include <WinSock2.h>
+#include <WS2tcpip.h>
+#else
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#endif
+
+#include <fcntl.h>
+#include <stdarg.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
+#include <time.h>
+#include <unistd.h>
 
-#include <err.h>
+#include <limits.h>
 #include <errno.h>
 
-#include <netdb.h>
-#include <netinet/in.h>
-#include <resolv.h>
-#include <sys/socket.h>
 #include <tls.h>
-
-#ifdef HAVE_LIB_BSD
-#include <bsd/bsd.h>
-#endif
 
 #include "dws.h"
 
@@ -52,7 +59,66 @@ static const char HANDSHAKE_TEMPLATE[] =
     "Sec-WebSocket-Protocol: dumb-ws\r\n"
     "Sec-WebSocket-Version: 13\r\n\r\n";
 
+static int rng_initialized = 0;
+
 static const char B64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+static void __attribute__((noreturn))
+crap(int code, const char *fmt, ...)
+{
+	char buf[512];
+	va_list ap;
+
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+
+	fprintf(stderr, "oh crap! %s\n", buf);
+	exit(code);
+}
+
+static uint32_t
+portable_random(void)
+{
+#ifdef _WIN32
+	errno_t err;
+	uint32_t r = 0;
+	err = rand_s(&r);
+	if (err != 0)
+		crap(err, "%s: rand_s failed", __func__);
+	return r;
+#else
+	return random();
+#endif
+}
+static void
+init_rng(void)
+{
+#ifndef _WIN32
+	// XXX: why doesn't every platform just have arc4random(3)?!
+	int fd;
+	ssize_t len;
+	char state[256];
+
+	fd = open("/dev/urandom", O_RDONLY);
+	len = read(fd, state, sizeof(state));
+	if (len < (ssize_t) sizeof(state))
+		crap(1, "%s: failed to fill state buffer", __func__);
+
+	initstate(time(NULL), state, sizeof(state));
+	close(fd);
+#endif
+	rng_initialized = 1;
+}
+
+static int
+choose(unsigned int upper_bound)
+{
+	if (!rng_initialized)
+		init_rng();
+
+	return (int) portable_random() % upper_bound;
+}
 
 /*
  * This is the dumbest 16-byte base64 data generator.
@@ -69,8 +135,8 @@ dumb_key(char *out)
 
 	/* 25 because 22 for the fake b64 + == + NULL */
 	memset(out, 0, 25);
-	for (i=0; i<22; i++) {
-		r = (int) arc4random_uniform(sizeof(B64) - 1);
+	for (i = 0; i < 22; i++) {
+		r = choose(sizeof(B64) - 1);
 		out[i] = B64[r];
 	}
 	out[22] = '=';
@@ -86,7 +152,10 @@ dumb_mask(uint8_t mask[4])
 {
 	uint32_t r;
 
-	r = arc4random();
+	if (!rng_initialized)
+		init_rng();
+	r = portable_random();
+
 	mask[0] = r >> 24;
 	mask[1] = (r & 0x00FF0000) >> 16;
 	mask[2] = (r & 0x0000FF00) >> 8;
@@ -94,7 +163,71 @@ dumb_mask(uint8_t mask[4])
 }
 
 /*
- * Initialize a frame buffer, returning the offset to the frame's payload.
+ * Safely read as much as we can into a given buffer since it may take
+ * multiple read(2)/tls_read(3) calls.
+ */
+static ssize_t
+ws_read(struct websocket *ws, void *buf, size_t buflen)
+{
+	ssize_t ret = 0;
+	char *_buf = (char*) buf;
+
+	if (buflen > INT_MAX)
+		crap(1, "ws_read: buflen too large");
+
+	if (ws->ctx) {
+		do {
+			ret = tls_read(ws->ctx, _buf, buflen);
+		} while (ret == TLS_WANT_POLLIN);
+	} else {
+		ret = read(ws->s, _buf, buflen);
+	}
+
+	// TODO: figure out how we want to handle errors...
+	// win32 spits out a different error than posix systems, btw.
+
+	return ret;
+}
+
+/*
+ * Safely write the given buf up to buflen via the socket.
+ */
+static ssize_t
+ws_write(struct websocket *ws, void *buf, size_t buflen)
+{
+	ssize_t _buflen, ret, len = 0;
+	char *_buf;
+
+	if (buflen > INT_MAX)
+		crap(1, "%s: buflen too large", __func__);
+
+	_buf = (char *)buf;
+	_buflen = (ssize_t) buflen;
+
+	if (ws->ctx) {
+		while (_buflen > 0) {
+			ret = tls_write(ws->ctx, _buf, (size_t) _buflen);
+			if (ret == TLS_WANT_POLLOUT)
+				continue;
+			if (ret < 0)
+				crap(1, "tls_write: %s", tls_error(ws->ctx));
+
+			_buf += ret;
+			_buflen -= ret;
+			len += ret;
+		}
+	} else {
+		// XXX: for now, we assume synchronous writes
+		len = write(ws->s, _buf, (size_t) _buflen);
+		if (len < 0)
+			crap(1, "socket write error");
+	}
+
+	return len;
+}
+
+/*
+ * Initialize a frame buffer, returning the current size of the frame in bytes.
  *
  * For reference, this is what frames look like per RFC6455 sec. 5.2:
  *
@@ -150,7 +283,8 @@ init_frame(uint8_t *frame, enum FRAME_OPCODE type, uint8_t mask[4], size_t len)
 	frame[++idx] = mask[2];
 	frame[++idx] = mask[3];
 
-	return idx;
+	// XXX: remember, we return the true size...not the offset
+	return idx + 1;
 }
 
 #ifdef DEBUG
@@ -191,8 +325,8 @@ dump_frame(uint8_t *frame, size_t len)
 static ssize_t
 dumb_frame(uint8_t *frame, uint8_t *data, size_t len)
 {
-	size_t i;
-	ssize_t offset;
+	int i;
+	ssize_t header_len;
 	uint8_t mask[4] = { 0, 0, 0, 0 };
 
 	// Just a quick safety check: we don't do large payloads
@@ -202,17 +336,16 @@ dumb_frame(uint8_t *frame, uint8_t *data, size_t len)
 	// Pretend we're in Eyes Wide Shut
 	dumb_mask(mask);
 
-	offset = init_frame(frame, BINARY, mask, len);
-	if (offset < 0)
-		errx(1, "init_frame: bad frame length");
+	header_len = init_frame(frame, BINARY, mask, len);
+	if (header_len < 0)
+		crap(1, "init_frame: bad frame length");
 
-	for (i = 0; i < len; i++) {
+	for (i = 0; i < (int) len; i++) {
 		// We just transmit in host byte order, someone else's problem
-		frame[++offset] = data[i] ^ mask[i % 4];
+		frame[header_len + i] = data[i] ^ mask[i % 4];
 	}
-	frame[++offset] = '\0';
 
-	return offset;
+	return header_len + i;
 }
 
 /*
@@ -229,68 +362,34 @@ dumb_frame(uint8_t *frame, uint8_t *data, size_t len)
  * Returns:
  *  0 on success,
  * -1 if it failed to generate the handshake buffer,
- * -2 if it failed to send the handshake,
- * -3 if it failed to receive the response,
- * -4 if the response was invalid.
- *  (in all cases, check errno)
+ * -2 if it received an invalid handshake response,
+ *  fatal error otherwise.
  */
 int
 dumb_handshake(struct websocket *ws, char *host, char *path)
 {
-	int ret;
-	ssize_t len;
-	char key[25];
-	char *buf;
-
-	buf = calloc(sizeof(char), HANDSHAKE_BUF_SIZE);
-	if (!buf)
-		err(errno, "calloc");
+	int len, ret = 0;
+	char key[25], buf[HANDSHAKE_BUF_SIZE];
 
 	memset(key, 0, sizeof(key));
 	dumb_key(key);
 
-	ret = snprintf(buf, HANDSHAKE_BUF_SIZE, HANDSHAKE_TEMPLATE,
+	len = snprintf(buf, sizeof(buf), HANDSHAKE_TEMPLATE,
 	    path, host, key);
-	if (ret < 1) {
-		free(buf);
+	if (len < 1)
 		return -1;
-	}
 
-	if (ws->ctx)
-		len = tls_write(ws->ctx, buf, (size_t) ret);
-	else
-		len = write(ws->s, buf, (size_t) ret);
+	ws_write(ws, buf, (size_t) len);
 
-	if (len < 1) {
-		free(buf);
-		return -2;
-	}
-
-	memset(buf, 0, HANDSHAKE_BUF_SIZE);
-
-	if (ws->ctx) {
-		do {
-			len = tls_read(ws->ctx, buf, HANDSHAKE_BUF_SIZE);
-		} while (len == TLS_WANT_POLLIN);
-	}
-	else {
-		// XXX: do we need safey checks?
-		len = read(ws->s, buf, HANDSHAKE_BUF_SIZE);
-	}
-
-	if (len < 1) {
-		free(buf);
-		return -3;
-	}
+	memset(buf, 0, sizeof(buf));
+	ws_read(ws, buf, sizeof(buf));
 
 	/* XXX: If we gave a crap, we'd validate the returned key per the
 	 * requirements of RFC6455 sec. 4.1, but we don't.
 	 */
-	ret = memcmp(server_handshake, buf, sizeof(server_handshake) - 1);
-	if (ret)
-		ret = -4;
+	if (memcmp(server_handshake, buf, sizeof(server_handshake) - 1))
+		ret = -2;
 
-	free(buf);
 	return ret;
 }
 
@@ -316,6 +415,14 @@ dumb_connect(struct websocket *ws, char *host, char *port)
 {
 	int s;
 	struct addrinfo hints, *res;
+
+#ifdef _WIN32
+	int ret;
+	WSADATA wsaData = {0};
+	ret = WSAStartup(MAKEWORD(2, 2), &wsaData);
+	if (ret)
+		crap(1, "WSAStartup failed: %d", ret);
+#endif
 
 	s = socket(AF_INET, SOCK_STREAM, 0);
 	if (s < 0)
@@ -361,12 +468,13 @@ dumb_connect_tls(struct websocket *ws, char *host, char *port, int insecure)
 {
 	int ret;
 	ret = dumb_connect(ws, host, port);
+	// TODO: better error handling...for now we hard fail for debugging
 	if (ret)
-		return ret;
-
+		crap(ret, "dumb_connect failed");
+	
 	ws->ctx = tls_client();
 	if (ws->ctx == NULL)
-		errx(1, "tls_client");
+		crap(1, "%s: tls_client failure", __func__);
 
 	ws->cfg = tls_config_new();
 
@@ -378,7 +486,7 @@ dumb_connect_tls(struct websocket *ws, char *host, char *port, int insecure)
 
 	ret = tls_configure(ws->ctx, ws->cfg);
 	if (ret)
-		errx(1, "tls_configure: invalid config");
+		crap(1, "%s: invalid tls config", __func__);
 
 	return tls_connect_socket(ws->ctx, ws->s, host);
 }
@@ -408,7 +516,7 @@ dumb_send(struct websocket *ws, void *payload, size_t len)
 
 	// We need payload size + 14 bytes minimum, but pad a little extra
 	frame = calloc(sizeof(uint8_t), len + 16);
-	if (!frame)
+	if (frame == NULL)
 		return -1;
 
 	memset(mask, 0, sizeof(mask));
@@ -416,7 +524,7 @@ dumb_send(struct websocket *ws, void *payload, size_t len)
 
 	frame_len = dumb_frame(frame, payload, len);
 	if (frame_len < 0)
-		errx(1, "dumb_send: invalid frame payload length");
+		crap(1, "%s: invalid frame payload length", __func__);
 
 	if (ws->ctx)
 		n = tls_write(ws->ctx, frame, (size_t) frame_len);
@@ -455,14 +563,10 @@ dumb_recv(struct websocket *ws, void *out, size_t len)
 	ssize_t offset = 0, n = 0;
 
 	frame = calloc(sizeof(uint8_t), len + FRAME_MAX_HEADER_SIZE + 1);
-	if (!frame)
+	if (frame == NULL)
 		return -1;
 
-	if (ws->ctx)
-		n = tls_read(ws->ctx, frame, len + FRAME_MAX_HEADER_SIZE + 1);
-	else
-		n = read(ws->s, frame, len + FRAME_MAX_HEADER_SIZE + 1);
-
+	n = ws_read(ws, frame, len + FRAME_MAX_HEADER_SIZE + 1);
 	if (n < 1) {
 		free(frame);
 		return -2;
@@ -470,7 +574,7 @@ dumb_recv(struct websocket *ws, void *out, size_t len)
 
 	// Now to validate the frame...
 	if (!(frame[0] & 0x80)) {
-		// XXX: don't currently support fractured frames, :-(
+		// XXX: We don't currently fragmentation
 		free(frame);
 		return -3;
 	}
@@ -485,7 +589,7 @@ dumb_recv(struct websocket *ws, void *out, size_t len)
 		offset = 4;
 	} else {
 		free(frame);
-		errx(1, "dumb_recv: unsupported payload size");
+		crap(1, "%s: unsupported payload size", __func__);
 	}
 
 	memcpy(out, frame + offset, (size_t) payload_len);
@@ -520,23 +624,14 @@ dumb_ping(struct websocket *ws)
 	dumb_mask(mask);
 
 	len = init_frame(frame, PING, mask, 0);
-	frame[++len] = '\0';
 
-	if (ws->ctx)
-		len = tls_write(ws->ctx, frame, (size_t) len);
-	else
-		len = write(ws->s, frame, (size_t) len);
-
+	len = ws_write(ws, frame, (size_t) len);
 	if (len < 1)
 		return -1;
 
 	memset(frame, 0, sizeof(frame));
 
-	if (ws->ctx)
-		len = tls_read(ws->ctx, frame, (size_t) len);
-	else
-		len = read(ws->s, frame, (size_t) len);
-
+	len = ws_read(ws, frame, sizeof(frame));
 	if (len < 1)
 		return -2;
 
@@ -549,6 +644,12 @@ dumb_ping(struct websocket *ws)
 
 	return 0;
 }
+
+#ifdef _WIN32
+#define HOW SD_BOTH
+#else
+#define HOW SHUT_RDWR
+#endif
 
 /*
  * dumb_close
@@ -573,46 +674,30 @@ dumb_ping(struct websocket *ws)
 int
 dumb_close(struct websocket *ws)
 {
-	int ret;
-	ssize_t len;
+	ssize_t frame_len, len;
 	uint8_t mask[4];
 	uint8_t frame[128];
 
 	memset(frame, 0, sizeof(frame));
 	dumb_mask(mask);
 
-	len = init_frame(frame, CLOSE, mask, 0);
-	frame[++len] = '\0';
+	frame_len = init_frame(frame, CLOSE, mask, 0);
 
-	if (ws->ctx)
-		len = tls_write(ws->ctx, frame, (size_t) len);
-	else
-		len = write(ws->s, frame, (size_t) len);
-
-
-	if (len < 1)
+	len = ws_write(ws, frame, (size_t) frame_len);
+	if (len < frame_len)
 		return -1;
 
 	memset(frame, 0, sizeof(frame));
 
-	if (ws->ctx)
-		len = tls_read(ws->ctx, frame, (size_t) len);
-	else
-		len = read(ws->s, frame, (size_t) len);
-
+	// A valid RFC6455 websocket server MUST send a Close frame in response
+	len = ws_read(ws, frame, sizeof(frame));
 	if (len < 1)
-		return -2;
-
-	if (frame[0] != (0x80 + CLOSE))
 		return -3;
 
-	if (ws->ctx) {
-		do {
-			ret = tls_close(ws->ctx);
-		} while (ret == TLS_WANT_POLLIN || ret == TLS_WANT_POLLOUT);
-	}
+	if (ws->ctx)
+		tls_close(ws->ctx);
 
-	if (shutdown(ws->s, SHUT_RDWR))
+	if (shutdown(ws->s, HOW))
 		return -4;
 
 	return 0;

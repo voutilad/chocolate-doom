@@ -29,6 +29,10 @@
 #include <librdkafka/rdkafka.h>
 #endif
 
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 #ifdef HAVE_LIBTLS
 #include <tls.h>
 #include "dws.h"
@@ -78,7 +82,7 @@ static char* jsonbuf = NULL;
 // the frame tic should be enough info for a consuming system to properly
 // order events we emit. Also, since it's assumed the code that accesses
 // the counter is single-threaded, we don't attempt to deal with races.
-static uint counter = 0;
+static unsigned int counter = 0;
 
 ///// FileSystem Logger
 // reference to event log file
@@ -93,7 +97,6 @@ static IPaddress addr;
 static UDPpacket *packet = NULL;
 
 #ifdef HAVE_LIBTLS
-static struct tls_config *cfg;
 static struct websocket ws;
 #endif
 
@@ -702,7 +705,7 @@ int writeWebsocketLog(char *msg, size_t len)
 
     sent = dumb_send(&ws, msg, len);
     if (sent < 1) {
-        printf("DEBUG: dumb_send returned %d\n", sent);
+        printf("DEBUG: dumb_send returned %zd\n", sent);
         I_Error("X_Telemetry: websocket failed send");
     }
 
