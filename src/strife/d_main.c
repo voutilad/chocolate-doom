@@ -109,7 +109,7 @@ char *          savegamedir;
 char *          iwadfile;
 
 
-boolean         devparm;        // started game with -devparm
+extern boolean  devparm;        // started game with -devparm
 boolean         nomonsters;     // checkparm of -nomonsters
 boolean         respawnparm;    // checkparm of -respawn
 boolean         fastparm;       // checkparm of -fast
