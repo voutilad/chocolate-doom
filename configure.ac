@@ -152,6 +152,7 @@ AS_IF([test "x$enable_werror" = "xyes"], [
 
 AM_CONDITIONAL(HAVE_WINDRES, test "$WINDRES" != "")
 AM_CONDITIONAL(HAVE_PYTHON, $HAVE_PYTHON)
+AM_CONDITIONAL(HAVE_LIBTLS, $HAVE_LIBTLS)
 
 dnl Automake v1.8.0 is required, please upgrade!
 
