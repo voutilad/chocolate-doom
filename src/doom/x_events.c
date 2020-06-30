@@ -70,6 +70,13 @@ static char *kafka_topic = "doom-telemetry";
 static char *kafka_brokers = "localhost:9092";
 #endif
 
+#ifdef HAVE_LIBTLS
+static char *ws_host = "localhost";
+static int ws_port = 8000;
+static char *ws_resource = "/";
+static int ws_tls_enabled = 0;
+#endif
+
 #define ASSERT_TELEMETRY_ON(...) if (!telemetry_enabled) return __VA_ARGS__
 
 // For now, we use a single global logger instance to keep things simple.
@@ -673,28 +680,43 @@ int writeKafkaLog(char *msg, size_t len)
 int initWebsocketPublisher(void)
 {
     int ret;
+    char port[6];
 
     printf("X_InitTelemetry: websocket mode enabled\n");
 
     memset(&ws, 0, sizeof(struct websocket));
-    ret = dumb_connect(&ws, "localhost", "8000");
+    memset(port, 0, sizeof(port));
+
+    ret = snprintf(port, sizeof(port), "%d", ws_port);
+    if (ret < 1)
+        I_Error("%s: bad port value: %d", __func__, ws_port);
+
+    printf("%s: connecting to %s:%s\n", __func__, ws_host, port);
+    if (ws_tls_enabled)
+        ret = dumb_connect_tls(&ws, ws_host, port, 1);
+    else
+        ret = dumb_connect(&ws, ws_host, port);
 
     if (ret)
-        I_Error("websocket connection failure");
+        I_Error("websocket connection failure: %d", ret);
 
-    ret = dumb_handshake(&ws, "localhost", "/");
+    printf("%s: handshaking with resource \"%s\"\n", __func__, ws_resource);
+    ret = dumb_handshake(&ws, ws_host, ws_resource);
     if (ret)
-        I_Error("websocket handshake failure");
+        I_Error("websocket handshake failure: %d", ret);
 
     return 0;
 }
 
 int closeWebsocketPublisher(void)
 {
-    printf("X_StopTelemetry: shutting down websocket");
+    int ret;
 
-    if (dumb_close(&ws))
-        I_Error("websocket close failure");
+    printf("X_StopTelemetry: shutting down websocket\n");
+
+    ret = dumb_close(&ws);
+    if (ret)
+        I_Error("%s: websocket close failure (%d)", __func__, ret);
 
     return 0;
 }
@@ -704,10 +726,8 @@ int writeWebsocketLog(char *msg, size_t len)
     ssize_t sent;
 
     sent = dumb_send(&ws, msg, len);
-    if (sent < 1) {
-        printf("DEBUG: dumb_send returned %zd\n", sent);
-        I_Error("X_Telemetry: websocket failed send");
-    }
+    if (sent < 1)
+        I_Error("%s: websocket failed send (%zd)", __func__, sent);
 
     return sent;
 }
@@ -825,6 +845,12 @@ void X_BindTelemetryVariables(void)
 #ifdef HAVE_LIBRDKAFKA
     M_BindStringVariable("telemetry_kafka_topic", &kafka_topic);
     M_BindStringVariable("telemetry_kafka_brokers", &kafka_brokers);
+#endif
+#ifdef HAVE_LIBTLS
+    M_BindStringVariable("telemetry_ws_host", &ws_host);
+    M_BindIntVariable("telemetry_ws_port", &ws_port);
+    M_BindStringVariable("telemetry_ws_resource", &ws_resource);
+    M_BindIntVariable("telemetry_ws_tls_enabled", &ws_tls_enabled);
 #endif
 }
 
