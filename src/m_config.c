@@ -730,6 +730,36 @@ static default_t	doom_defaults_list[] =
 
     CONFIG_VARIABLE_STRING(telemetry_kafka_brokers),
 #endif
+
+#ifdef HAVE_LIBTLS
+    //!
+    // @game doom
+    //
+    // Hostname or IP address for the websocket server
+    //
+    CONFIG_VARIABLE_STRING(telemetry_ws_host),
+
+    //!
+    // @game doom
+    //
+    // TCP port of websocket server
+    //
+    CONFIG_VARIABLE_INT(telemetry_ws_port),
+
+    //!
+    // @game doom
+    //
+    // HTTP resource to retelquest on the websocket server
+    //
+    CONFIG_VARIABLE_STRING(telemetry_ws_resource),
+
+    //!
+    // @game doom
+    //
+    // Does the websocket host use TLS? (1 = true, 0 = false)
+    //
+    CONFIG_VARIABLE_INT(telemetry_ws_tls_enabled)
+#endif
 };
 
 static default_collection_t doom_defaults =

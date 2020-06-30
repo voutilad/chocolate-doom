@@ -32,9 +32,10 @@ static char *kafka_topic = "doom-telemetry";
 static char *kafka_brokers = "localhost:9092";
 #endif
 
-#ifdef HAVE_TLS
+#ifdef HAVE_LIBTLS
 static char *ws_host = "localhost";
 static int ws_port = 8000;
+static char *ws_resource = "/";
 static int ws_tls_enabled = 1;
 #endif
 
@@ -54,8 +55,20 @@ void ConfigTelemetry(TXT_UNCAST_ARG(widget), void *user_data)
 #ifdef HAVE_LIBRDKAFKA
                    TXT_NewRadioButton("Kafka", &telemetry_mode, KAFKA_MODE),
 #endif
-#ifdef HAVE_TLS
-                   TXT_NewRadioButton("Websockets", &telemetry_mode, WEBSOCKET_MODE);
+#ifdef HAVE_LIBTLS
+                   TXT_NewRadioButton("WebSockets", &telemetry_mode, WEBSOCKET_MODE),
+                   TXT_NewSeparator("WebSockets"),
+                   TXT_NewHorizBox(TXT_NewLabel(" Host/IP: "),
+                                   TXT_NewInputBox(&ws_host, 50),
+                                   NULL),
+                   TXT_NewHorizBox(TXT_NewLabel("    Port: "),
+                                   TXT_NewIntInputBox(&ws_port, 6),
+                                   NULL),
+                   TXT_NewHorizBox(TXT_NewLabel("Resource: "),
+                                   TXT_NewInputBox(&ws_resource, 50),
+                                   NULL),
+                   TXT_NewHorizBox(TXT_NewCheckBox("Uses TLS?", &ws_tls_enabled),
+                                   NULL),
 #endif
                    TXT_NewSeparator("UDP (IPv4 Only)"),
                    TXT_NewHorizBox(TXT_NewLabel("Host/IP:  "),
@@ -86,9 +99,10 @@ void BindTelemetryVariables(void)
     M_BindStringVariable("telemetry_kafka_topic", &kafka_topic);
     M_BindStringVariable("telemetry_kafka_brokers", &kafka_brokers);
 #endif
-#ifdef HAVE_TLS
+#ifdef HAVE_LIBTLS
     M_BindStringVariable("telemetry_ws_host", &ws_host);
     M_BindIntVariable("telemetry_ws_port", &ws_port);
-    M_BindIntVariable("telementry_ws_tls_enabled", &ws_tls_enabled);
+    M_BindStringVariable("telemetry_ws_resource", &ws_resource);
+    M_BindIntVariable("telemetry_ws_tls_enabled", &ws_tls_enabled);
 #endif
 }
