@@ -735,28 +735,28 @@ static default_t	doom_defaults_list[] =
     //!
     // @game doom
     //
-    // Hostname or IP address for the websocket server
+    // Hostname or IP address for the WebSocket server
     //
     CONFIG_VARIABLE_STRING(telemetry_ws_host),
 
     //!
     // @game doom
     //
-    // TCP port of websocket server
+    // TCP port of WebSocket server
     //
     CONFIG_VARIABLE_INT(telemetry_ws_port),
 
     //!
     // @game doom
     //
-    // HTTP resource to retelquest on the websocket server
+    // HTTP resource to request on the WebSocket server
     //
     CONFIG_VARIABLE_STRING(telemetry_ws_resource),
 
     //!
     // @game doom
     //
-    // Does the websocket host use TLS? (1 = true, 0 = false)
+    // Toggle for using TLS with the WebSocket connection
     //
     CONFIG_VARIABLE_INT(telemetry_ws_tls_enabled)
 #endif
