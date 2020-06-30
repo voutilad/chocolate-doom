@@ -731,6 +731,26 @@ int writeWebsocketLog(char *msg, size_t len)
 
     return sent;
 }
+#else
+
+int initWebsocketPublisher(void)
+{
+    printf("X_InitTelemetry: websocket mode enabled, but not compiled in!\n");
+    telemetry_enabled = 0;
+
+    return 0;
+}
+
+int closeWebsocketPublisher(void)
+{
+    return 0;
+}
+
+int writeWebsocketLog(char *msg, size_t len)
+{
+    return 1;
+}
+
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
