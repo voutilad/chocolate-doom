@@ -117,8 +117,11 @@ w_file_posix.c                             \
 w_file_win32.c                             \
 w_merge.c            w_merge.h             \
 z_zone.c             z_zone.h              \
-cJSON.c              cJSON.h               \
-dws.c                dws.h
+cJSON.c              cJSON.h
+
+if HAVE_LIBTLS
+DUMB_WEBSOCKET_FILES = dws.c dws.h
+endif
 
 DEHACKED_SOURCE_FILES =                    \
 deh_defs.h                                 \
@@ -129,7 +132,7 @@ deh_text.c
 
 # Some games support dehacked patches, some don't:
 
-SOURCE_FILES = $(COMMON_SOURCE_FILES) $(GAME_SOURCE_FILES)
+SOURCE_FILES = $(COMMON_SOURCE_FILES) $(GAME_SOURCE_FILES) $(DUMB_WEBSOCKET_FILES)
 SOURCE_FILES_WITH_DEH = $(SOURCE_FILES) $(DEHACKED_SOURCE_FILES)
 
 EXTRA_LIBS =                                               \
