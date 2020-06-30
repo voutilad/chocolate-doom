@@ -749,16 +749,18 @@ static default_t	doom_defaults_list[] =
     //!
     // @game doom
     //
-    // HTTP resource to request on the WebSocket server
+    // HTTP resource to request on the WebSocket
+    // server during WebSocket upgrade handshake
     //
     CONFIG_VARIABLE_STRING(telemetry_ws_resource),
 
     //!
     // @game doom
     //
-    // Toggle for using TLS with the WebSocket connection
+    // Toggle for using TLS with the WebSocket
+    // connection.
     //
-    CONFIG_VARIABLE_INT(telemetry_ws_tls_enabled)
+    CONFIG_VARIABLE_INT(telemetry_ws_tls_enabled),
 #endif
 };
 
