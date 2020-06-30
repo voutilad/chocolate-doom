@@ -131,7 +131,7 @@ boolean MenuActive;
 int InfoType;
 int messageson = true;
 boolean mn_SuicideConsole;
-boolean demoextend; // from h2def.h
+extern boolean demoextend; // from h2def.h
 
 // PRIVATE DATA DEFINITIONS ------------------------------------------------
 
