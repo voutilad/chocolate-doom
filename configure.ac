@@ -90,6 +90,7 @@ AS_IF([test "x$with_librdkafka" != xno], [
 ])
 
 # check for libtls...look to pkg-config if it seems we might not be on OpenBSD
+AM_CONDITIONAL(HAVE_LIBTLS, true)
 PKG_CHECK_MODULES(TLS, [libtls >= 3.1.0],
     [AC_DEFINE([HAVE_LIBTLS], [1], [libtls installed])],
     [
@@ -106,7 +107,10 @@ PKG_CHECK_MODULES(TLS, [libtls >= 3.1.0],
                         AC_DEFINE([HAVE_LIBTLS], [1], [liblibretls found])
                         LDFLAGS="$LDFLAGS -llibretls"
                     ],
-                    [AC_MSG_WARN([could not find libtls in any form!])]
+                    [
+                        AM_CONDITIONAL(HAVE_LIBTLS, false)
+                        AC_MSG_WARN([could not find libtls in any form!])
+                    ]
                 )
             ]
         )
@@ -152,7 +156,6 @@ AS_IF([test "x$enable_werror" = "xyes"], [
 
 AM_CONDITIONAL(HAVE_WINDRES, test "$WINDRES" != "")
 AM_CONDITIONAL(HAVE_PYTHON, $HAVE_PYTHON)
-AM_CONDITIONAL(HAVE_LIBTLS, $HAVE_LIBTLS)
 
 dnl Automake v1.8.0 is required, please upgrade!
 
