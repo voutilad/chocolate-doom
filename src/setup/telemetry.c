@@ -24,18 +24,20 @@
 static int telemetry_enabled = 1;
 static int telemetry_mode = FILE_MODE;
 
-static char *udp_host = "localhost";
+static char *udp_host = NULL;
 static int udp_port = 10666;
 
 #ifdef HAVE_LIBRDKAFKA
-static char *kafka_topic = "doom-telemetry";
-static char *kafka_brokers = "localhost:9092";
+static char *kafka_topic = NULL;
+static char *kafka_brokers = NULL;
+static char *kafka_sasl_username = NULL;
+static char *kafka_sasl_password = NULL;
 #endif
 
 #ifdef HAVE_LIBTLS
-static char *ws_host = "localhost";
+static char *ws_host = NULL;
 static int ws_port = 8000;
-static char *ws_resource = "/";
+static char *ws_resource = NULL;
 static int ws_tls_enabled = 1;
 #endif
 
@@ -79,11 +81,17 @@ void ConfigTelemetry(TXT_UNCAST_ARG(widget), void *user_data)
                                    NULL),
 #ifdef HAVE_LIBRDKAFKA
                    TXT_NewSeparator("Kafka"),
-                   TXT_NewHorizBox(TXT_NewLabel("  Topic:  "),
+                   TXT_NewHorizBox(TXT_NewLabel("        Topic:  "),
                                    TXT_NewInputBox(&kafka_topic, 50),
                                    NULL),
-                   TXT_NewHorizBox(TXT_NewLabel("Brokers:  "),
+                   TXT_NewHorizBox(TXT_NewLabel("      Brokers:  "),
                                    TXT_NewInputBox(&kafka_brokers, 50),
+                                   NULL),
+                   TXT_NewHorizBox(TXT_NewLabel("    SASL User:  "),
+                                   TXT_NewInputBox(&kafka_sasl_username, 50),
+                                   NULL),
+                   TXT_NewHorizBox(TXT_NewLabel("SASL Password:  "),
+                                   TXT_NewInputBox(&kafka_sasl_password, 50),
                                    NULL),
 #endif
                    NULL);
@@ -98,6 +106,8 @@ void BindTelemetryVariables(void)
 #ifdef HAVE_LIBRDKAFKA
     M_BindStringVariable("telemetry_kafka_topic", &kafka_topic);
     M_BindStringVariable("telemetry_kafka_brokers", &kafka_brokers);
+    M_BindStringVariable("telemetry_kafka_username", &kafka_sasl_username);
+    M_BindStringVariable("telemetry_kafka_password", &kafka_sasl_password);
 #endif
 #ifdef HAVE_LIBTLS
     M_BindStringVariable("telemetry_ws_host", &ws_host);

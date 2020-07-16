@@ -68,6 +68,8 @@ static int udp_port = 10666;
 #ifdef HAVE_LIBRDKAFKA
 static char *kafka_topic = "doom-telemetry";
 static char *kafka_brokers = "localhost:9092";
+static char *kafka_sasl_username = "";
+static char *kafka_sasl_password = "";
 #endif
 
 #ifdef HAVE_LIBTLS
@@ -575,9 +577,29 @@ static int initKafkaPublisher(void)
     if (rd_kafka_conf_set(kafka_conf, "bootstrap.servers",
                           kafka_brokers, kafka_errbuf,
                           sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
+        I_Error("%s: could not set Kafka brokers, %s", __func__, kafka_errbuf);
+
+    if (strnlen(kafka_sasl_username, 50))
     {
-        I_Error("X_InitTelemetry: could not set Kafka brokers, %s",
-                kafka_errbuf);
+        if (rd_kafka_conf_set(kafka_conf, "security.protocol",
+                              "SASL_SSL", kafka_errbuf,
+                              sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
+            I_Error("%s: could not set kafka security.protocol", __func__);
+
+        if (rd_kafka_conf_set(kafka_conf, "sasl.mechanism",
+                              "PLAIN", kafka_errbuf,
+                              sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
+            I_Error("%s: could not set kafka sasl mechanism", __func__);
+
+        if (rd_kafka_conf_set(kafka_conf, "sasl.username",
+                              kafka_sasl_username, kafka_errbuf,
+                              sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
+            I_Error("%s: could not set kafka sasl.username", __func__);
+
+        if (rd_kafka_conf_set(kafka_conf, "sasl.password",
+                              kafka_sasl_password, kafka_errbuf,
+                              sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
+            I_Error("%s: could not set kafka sasl.password", __func__);
     }
 
     rd_kafka_conf_set_dr_msg_cb(kafka_conf, dr_msg_cb);
@@ -865,6 +887,8 @@ void X_BindTelemetryVariables(void)
 #ifdef HAVE_LIBRDKAFKA
     M_BindStringVariable("telemetry_kafka_topic", &kafka_topic);
     M_BindStringVariable("telemetry_kafka_brokers", &kafka_brokers);
+    M_BindStringVariable("telemetry_kafka_username", &kafka_sasl_username);
+    M_BindStringVariable("telemetry_kafka_password", &kafka_sasl_password);
 #endif
 #ifdef HAVE_LIBTLS
     M_BindStringVariable("telemetry_ws_host", &ws_host);

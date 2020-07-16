@@ -729,6 +729,22 @@ static default_t	doom_defaults_list[] =
     //
 
     CONFIG_VARIABLE_STRING(telemetry_kafka_brokers),
+
+    //!
+    // @game doom
+    //
+    // SASL username (Confluent API Key)
+    //
+
+    CONFIG_VARIABLE_STRING(telemetry_kafka_username),
+
+    //!
+    // @game doom
+    //
+    // SASL password (Confluent API Secret)
+    //
+
+    CONFIG_VARIABLE_STRING(telemetry_kafka_password),
 #endif
 
 #ifdef HAVE_LIBTLS
@@ -1138,7 +1154,7 @@ static default_t extra_defaults_list[] =
     //
 
     CONFIG_VARIABLE_INT(mouseb_nextweapon),
-    
+
     //!
     // @game heretic
     //
