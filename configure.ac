@@ -126,6 +126,12 @@ AS_HELP_STRING([--without-librdkafka],
 AS_IF([test "x$with_librdkafka" != xno], [
     PKG_CHECK_MODULES(RDKAFKA, rdkafka >= 1.4.0, [
         AC_DEFINE([HAVE_LIBRDKAFKA], [1], [librdkafka installed])
+        PKG_CHECK_MODULES(SASL2, libsasl2 >= 2.1.0, [
+            AC_DEFINE([HAVE_LIBSASL2], [1], [libsasl2 installed])
+        ],
+        [
+            AC_MSG_WARN([could not find libsasl2])
+        ])
     ], [
         AS_IF([test "x$with_librdkafka" != xcheck], [AC_MSG_FAILURE(
             [--with-librdkafka was given, but test for librdkafka failed])
@@ -167,6 +173,8 @@ CFLAGS="$CFLAGS $SDL_CFLAGS ${SAMPLERATE_CFLAGS:-} ${PNG_CFLAGS:-}"
 CFLAGS="$CFLAGS ${RDKAFKA_CFLAGS:-} ${TLS_CFLAGS:-} ${BSD_CFLAGS:-}"
 LDFLAGS="$LDFLAGS $SDL_LIBS ${SAMPLERATE_LIBS:-} ${PNG_LIBS:-}"
 LDFLAGS="$LDFLAGS ${RDKAFKA_LIBS:-} ${TLS_LIBS:-} ${BSD_LIBS:-}"
+LDFLAGS="$LDFLAGS ${SASL2_LIBS:-}"
+
 AC_CHECK_LIB(m, log)
 
 AC_CHECK_HEADERS([dirent.h linux/kd.h dev/isa/spkrio.h dev/speaker/speaker.h])

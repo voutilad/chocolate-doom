@@ -30,8 +30,10 @@ static int udp_port = 10666;
 #ifdef HAVE_LIBRDKAFKA
 static char *kafka_topic = NULL;
 static char *kafka_brokers = NULL;
+#ifdef HAVE_LIBSASL2
 static char *kafka_sasl_username = NULL;
 static char *kafka_sasl_password = NULL;
+#endif
 #endif
 
 #ifdef HAVE_LIBTLS
@@ -87,11 +89,13 @@ void ConfigTelemetry(TXT_UNCAST_ARG(widget), void *user_data)
                    TXT_NewHorizBox(TXT_NewLabel("      Brokers:  "),
                                    TXT_NewInputBox(&kafka_brokers, 50),
                                    NULL),
+#ifdef HAVE_LIBSASL2
                    TXT_NewHorizBox(TXT_NewLabel("    SASL User:  "),
                                    TXT_NewInputBox(&kafka_sasl_username, 50),
                                    NULL),
                    TXT_NewHorizBox(TXT_NewLabel("SASL Password:  "),
                                    TXT_NewInputBox(&kafka_sasl_password, 50),
+#endif
                                    NULL),
 #endif
                    NULL);
@@ -106,9 +110,11 @@ void BindTelemetryVariables(void)
 #ifdef HAVE_LIBRDKAFKA
     M_BindStringVariable("telemetry_kafka_topic", &kafka_topic);
     M_BindStringVariable("telemetry_kafka_brokers", &kafka_brokers);
+#ifdef HAVE_LIBSASL2
     M_BindStringVariable("telemetry_kafka_username", &kafka_sasl_username);
     M_BindStringVariable("telemetry_kafka_password", &kafka_sasl_password);
-#endif
+#endif // HAVE_LIBSASL2
+#endif // HAVE_LIBRDKAFKA
 #ifdef HAVE_LIBTLS
     M_BindStringVariable("telemetry_ws_host", &ws_host);
     M_BindIntVariable("telemetry_ws_port", &ws_port);

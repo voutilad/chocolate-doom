@@ -729,7 +729,7 @@ static default_t	doom_defaults_list[] =
     //
 
     CONFIG_VARIABLE_STRING(telemetry_kafka_brokers),
-
+#ifdef HAVE_LIBSASL2
     //!
     // @game doom
     //
@@ -745,7 +745,8 @@ static default_t	doom_defaults_list[] =
     //
 
     CONFIG_VARIABLE_STRING(telemetry_kafka_password),
-#endif
+#endif // HAVE_LIBSASL2
+#endif // HAVE_LIBRDKAFKA
 
 #ifdef HAVE_LIBTLS
     //!

@@ -68,8 +68,10 @@ static int udp_port = 10666;
 #ifdef HAVE_LIBRDKAFKA
 static char *kafka_topic = "doom-telemetry";
 static char *kafka_brokers = "localhost:9092";
+#ifdef HAVE_LIBSASL2
 static char *kafka_sasl_username = "";
 static char *kafka_sasl_password = "";
+#endif
 #endif
 
 #ifdef HAVE_LIBTLS
@@ -579,6 +581,7 @@ static int initKafkaPublisher(void)
                           sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
         I_Error("%s: could not set Kafka brokers, %s", __func__, kafka_errbuf);
 
+#ifdef HAVE_LIBSASL2
     if (strnlen(kafka_sasl_username, 50))
     {
         if (rd_kafka_conf_set(kafka_conf, "security.protocol",
@@ -601,6 +604,7 @@ static int initKafkaPublisher(void)
                               sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
             I_Error("%s: could not set kafka sasl.password", __func__);
     }
+#endif
 
     rd_kafka_conf_set_dr_msg_cb(kafka_conf, dr_msg_cb);
 
