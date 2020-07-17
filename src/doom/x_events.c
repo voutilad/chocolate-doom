@@ -25,11 +25,11 @@
 #define ssize_t int
 #else
 #include <SDL2/SDL_net.h>
+#include <unistd.h>
 #endif
 
 
 #include <fcntl.h>
-//#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
