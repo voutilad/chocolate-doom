@@ -656,11 +656,16 @@ static int closeKafkaPublisher(void)
     return 0;
 }
 
+/*
+ * Publishes an event to a given Topic, using the SessionID as the key and sets
+ * the value to the JSON msg payload.
+ */
 static int writeKafkaLog(char *msg, size_t len)
 {
     rd_kafka_resp_err_t err;
     err = rd_kafka_producev(kafka_producer,
                             RD_KAFKA_V_TOPIC(kafka_topic),
+                            RD_KAFKA_V_KEY(session_id, SESSION_ID_CHAR_LEN),
                             RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
                             RD_KAFKA_V_VALUE(msg, len),
                             RD_KAFKA_V_OPAQUE(NULL),
@@ -670,12 +675,11 @@ static int writeKafkaLog(char *msg, size_t len)
         if (err == RD_KAFKA_RESP_ERR__QUEUE_FULL)
         {
             // queue full...for now we just shrug
-            printf("X_Telemetry: internal Kafka oubound queue is full :-(\n");
+            printf("%s: internal Kafka outbound queue is full :-(\n", __func__);
         }
         else
         {
-            printf("X_Telemetry: unknown kafka issue... %s\n",
-                   rd_kafka_err2str(err));
+            printf("%s: unknown kafka issue... %s\n", __func__, rd_kafka_err2str(err));
         }
 
         return 0;
