@@ -96,6 +96,14 @@ int main(int argc, char **argv)
     if (devparm)
     {   // Create a separate console window
         AllocConsole();
+        // Head text outputs
+        freopen("CONIN$", "r", stdin);
+        freopen("CONOUT$", "w", stdout);
+        freopen("CONOUT$", "w", stderr);
+
+        // Set a proper codepage
+        SetConsoleOutputCP(CP_UTF8);
+        SetConsoleCP(CP_UTF8);
     }
     else
     {
@@ -110,15 +118,6 @@ int main(int argc, char **argv)
         // for proper return to command prompt
         I_AtExit(I_RD_SendReturn, false);
     }
-
-    // Head text outputs
-    freopen("CONIN$", "r",stdin); 
-    freopen("CONOUT$","w",stdout); 
-    freopen("CONOUT$","w",stderr); 
-
-    // Set a proper codepage
-    SetConsoleOutputCP(CP_UTF8);
-    SetConsoleCP(CP_UTF8);
 #endif
 
     // start doom
