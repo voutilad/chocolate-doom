@@ -9,6 +9,7 @@ add_library(setup STATIC
             multiplayer.c       multiplayer.h
             sound.c             sound.h
             execute.c           execute.h
+            telemetry.c         telemetry.h
             txt_joyaxis.c       txt_joyaxis.h
             txt_joybinput.c     txt_joybinput.h
             txt_keyinput.c      txt_keyinput.h

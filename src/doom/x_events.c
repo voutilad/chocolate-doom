@@ -16,21 +16,28 @@
 //
 #include "config.h"
 
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
+#ifdef _WIN32
+#include <SDL_net.h>
+#define ssize_t int
+#else
+#include <SDL2/SDL_net.h>
+#endif
+
+
 #include <fcntl.h>
-#include <unistd.h>
+//#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <sys/stat.h>
 
-#include <SDL2/SDL_net.h>
 
 #ifdef HAVE_LIBRDKAFKA
 #include <librdkafka/rdkafka.h>
-#endif
-
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
 #endif
 
 #ifdef HAVE_LIBTLS
