@@ -18,10 +18,10 @@ https://www.chocolate-doom.org/wiki/index.php/Building_Chocolate_Doom_on_Windows
 
 I personally build and test on the following platforms:
 
-- macOS v10.15.3
-- Ubuntu 18.04 LTS
-- Windows 10 w/ msys2-x86_64 v20190524
-- OpenBSD-current
+- Ubuntu 18.04 LTS (primarily via WSL2)
+- Windows 10 w/ msys2-x86_32 v20200903
+- OpenBSD-current (6.8 beta and newer...you may need to explicitly set `CC=clang`)
+- macOS v10.15 (but only occasionally...ymmv)
 
 I do this primarily using the automake/autoconf tooling and the
 resulting Makefiles, so if you have the proper dependencies (python,
