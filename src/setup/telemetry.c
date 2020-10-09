@@ -63,7 +63,7 @@ void ConfigTelemetry(TXT_UNCAST_ARG(widget), void *user_data)
                    TXT_NewRadioButton("WebSockets", &telemetry_mode, WEBSOCKET_MODE),
                    TXT_NewSeparator("WebSockets"),
                    TXT_NewHorizBox(TXT_NewLabel(" Host/IP: "),
-                                   TXT_NewInputBox(&ws_host, 50),
+                                   TXT_NewInputBox(&ws_host, 60),
                                    NULL),
                    TXT_NewHorizBox(TXT_NewLabel("    Port: "),
                                    TXT_NewIntInputBox(&ws_port, 6),
