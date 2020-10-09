@@ -18,10 +18,10 @@ https://www.chocolate-doom.org/wiki/index.php/Building_Chocolate_Doom_on_Windows
 
 I personally build and test on the following platforms:
 
-- macOS v10.15.3
-- Ubuntu 18.04 LTS
-- Windows 10 w/ msys2-x86_64 v20190524
+- Ubuntu 20.04 LTS
+- Windows 10 w/ msys2-x86_64 v20190524 (see notes for WSL2 below)
 - OpenBSD-current
+- macOS v10.15.3 (albeit very rarely these days)
 
 I do this primarily using the automake/autoconf tooling and the
 resulting Makefiles, so if you have the proper dependencies (python,
@@ -48,6 +48,37 @@ The resulting executable will be in `./src/` as `chocolate-doom` or
 package or bundled app, but if you do follow the official Chocolate
 Doom docs from their wiki.
 
+### Optional 3rd Party Dependencies
+#### Kafka
+If you'd like to add in Kafka support:
+- build/install [librdkafka](https://github.com/edenhill/librdkafka)
+- make sure you've followed the `librdkafka` docs for SASL2 support
+- make sure it's accessible via `pkg-config`
+
+If you'd like to disable building with `librdkafka`, pass
+`--without-librdkafka` to `./configure`.
+
+#### WebSockets
+Right now, websocket support requires `libtls` from the
+[LibreSSL](https://libressl.org) project.
+
+### Leveraging WSL2 on Windows 10
+Msys2/mingw can be challenging to get working if you're trying to use
+`librdkafka` as a telemetry destination.
+
+Using WSL2 can vastly simplify things, but you need to also do the
+following (assuming you use VcXsrv):
+
+- enable `X11Forwarding` in `/etc/ssh/sshd_config`
+- disable "Native OpenGL" in VcXsrv session
+- set `LIBGL_ALWAYS_INDIRECT=0` in your enviornment
+- disable authentication in VcXsrv or learn how to get it working
+
+Without the above, SDL2 seems to not work (at least as of Win10 v2004,
+build 19041.508).
+
+> Note: the above assumes using Ubuntu as the WSL2 environment
+
 ## Running
 
 You should first configure Choclate Doom, specifically the telemetry
@@ -63,19 +94,47 @@ documentation on configuration settings. (You can also hit `F1` in
 that setup screen to pop a web browser to the latest documentation.)
 
 ## Telemetry
-**TODO: DOCUMENT TELEMETRY SCHEMA**
+The event structure takes the following shape and is emitted in JSON:
 
-Sample output (produced by the test binary):
 ```json
-{"level":{"episode":69,"level":69,"difficulty":1},"type":"start_level","frame":{"millis":0,"tic":0}}
-{"armor_type":69,"type":"pickup_armor","frame":{"millis":0,"tic":0},"actor":{"position":{"x":12,"y":13,"z":0,"angle":180,"subsector":4484865928},"type":"player","id":140732730996144}}
-{"weapon_type":2,"type":"pickup_weapon","frame":{"millis":0,"tic":0},"actor":{"position":{"x":12,"y":13,"z":0,"angle":180,"subsector":4484865928},"type":"player","id":140732730996144}}
-{"type":"move","frame":{"millis":0,"tic":0},"actor":{"position":{"x":10,"y":20,"z":0,"angle":180,"subsector":4484865928},"type":"shotgun_soldier","id":140732730996592}}
-{"type":"targeted","frame":{"millis":0,"tic":0},"actor":{"position":{"x":10,"y":20,"z":0,"angle":180,"subsector":4484865928},"type":"shotgun_soldier","id":140732730996592},"target":{"type":"barrel","id":140732730996368}}
-{"type":"killed","frame":{"millis":0,"tic":0},"actor":{"position":{"x":10,"y":20,"z":0,"angle":180,"subsector":4484865928},"type":"shotgun_soldier","id":140732730996592}}
-{"type":"move","frame":{"millis":0,"tic":0},"actor":{"position":{"x":12,"y":13,"z":0,"angle":180,"subsector":4484865928},"type":"player","id":140732730996144}}
-{"type":"killed","frame":{"millis":0,"tic":0},"actor":{"position":{"x":10,"y":20,"z":0,"angle":180,"subsector":4484865928},"type":"shotgun_soldier","id":140732730996592},"target":{"type":"player","id":140732730996144}}
+{
+  "damage": 10,
+  "counter": 479,
+  "session": "7372d46f7d83f353d9e1c18f",
+  "type": "hit",
+  "frame": {
+    "millis": 11829,
+    "tic": 414
+  },
+  "actor": {
+    "position": {
+      "x": 82759579,
+      "y": -186153129,
+      "z": 0,
+      "angle": 3292528640,
+      "subsector": 140365466405016
+    },
+    "type": "player",
+    "health": 100,
+    "armor": 0,
+    "id": 140365466484344
+  },
+  "target": {
+    "position": {
+      "x": 85983232,
+      "y": -213909504,
+      "z": -1048576,
+      "angle": 1073741824,
+      "subsector": 140365466404840
+    },
+    "type": "barrel",
+    "health": 10,
+    "id": 140365466491112
+  }
+}
 ```
+
+The `target` is optional.
 
 ## Testing
 
