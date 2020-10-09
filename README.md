@@ -21,7 +21,7 @@ I personally build and test on the following platforms:
 - Ubuntu 20.04 LTS
 - Windows 10 w/ msys2-x86_64 v20190524 (see notes for WSL2 below)
 - OpenBSD-current
-- macOS v10.15.3 (albeit very rarely these days)
+- macOS v10.15 (but only occasionally...ymmv)
 
 I do this primarily using the automake/autoconf tooling and the
 resulting Makefiles, so if you have the proper dependencies (python,
