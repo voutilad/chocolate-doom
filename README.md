@@ -21,7 +21,7 @@ I personally build and test on the following platforms:
 - Ubuntu 20.04 LTS
 - Windows 10 w/ msys2-x86_64 v20190524 (see notes for WSL2 below)
 - OpenBSD-current
-- macOS v10.15 (but only occasionally...ymmv)
+- macOS v13.3 (Ventura?)
 
 I do this primarily using the automake/autoconf tooling and the
 resulting Makefiles, so if you have the proper dependencies (python,
@@ -61,6 +61,20 @@ If you'd like to disable building with `librdkafka`, pass
 #### WebSockets
 Right now, websocket support requires `libtls` from the
 [LibreSSL](https://libressl.org) project.
+
+
+### macOS & Homebrew
+Things have changed quite a bit in the macOS world since I started
+this project. Currently, one needs to coax autoconf and pkg-config
+into finding dependencies for things like `librdkafka`:
+
+```
+$ PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@1.1/lib/pkgconfig:/opt/homebrew/opt/cyrus-sasl/lib/pkgconfig" \
+    ./configure --with-librdkafka
+```
+
+This appears to be due to trying to avoid conflicts with the SASL2 and
+OpenSSL libraries shipped by macOS.
 
 ### Leveraging WSL2 on Windows 10
 Msys2/mingw can be challenging to get working if you're trying to use
