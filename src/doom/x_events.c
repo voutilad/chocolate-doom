@@ -26,7 +26,7 @@
 #else
 #include <SDL2/SDL_net.h>
 #include <unistd.h>
-#endif
+#endif /* _WIN32 */
 
 
 #include <fcntl.h>
@@ -43,7 +43,7 @@
 #ifdef HAVE_LIBTLS
 #include <tls.h>
 #include "dws.h"
-#endif
+#endif /* HAVE_LIBTLS */
 
 #include "cJSON.h"
 
@@ -78,15 +78,15 @@ static char *kafka_brokers = "localhost:9092";
 #ifdef HAVE_LIBSASL2
 static char *kafka_sasl_username = "";
 static char *kafka_sasl_password = "";
-#endif
-#endif
+#endif /* HAVE_LIBSASL2 */
+#endif /* HAVE_LIBRDKAFKA */
 
 #ifdef HAVE_LIBTLS
 static char *ws_host = "localhost";
 static int ws_port = 8000;
 static char *ws_resource = "/";
 static int ws_tls_enabled = 0;
-#endif
+#endif /* HAVE_LIBTLS */
 
 #define ASSERT_TELEMETRY_ON(...) if (!telemetry_enabled) return __VA_ARGS__
 
@@ -211,7 +211,7 @@ const char* enemyTypeName(mobj_t* enemy) {
 #ifdef TEST
 sector_t test_sector = {};
 subsector_t test_subsector = { &test_sector, 0, 0 };
-#endif
+#endif /* TEST */
 
 // Try to determine the location of an Actor
 static subsector_t* guessActorLocation(mobj_t *actor)
@@ -220,7 +220,7 @@ static subsector_t* guessActorLocation(mobj_t *actor)
     return &test_subsector;
 #else
     return R_PointInSubsector(actor->x, actor->y);
-#endif
+#endif /* TEST */
 }
 
 static void init_session_id(void)
@@ -229,6 +229,8 @@ static void init_session_id(void)
     ssize_t cnt;
     char buf[SESSION_ID_LEN];
 
+    // Pray we are running on a modern system with /dev/urandom.
+    // XXX: uhhhh Win32?
     fd = open("/dev/urandom", O_RDONLY);
     if (fd < 0)
     {
@@ -449,7 +451,7 @@ static int initFileLog(void)
     {
         I_Error("X_InitTelemetry: couldn't chmod log file!");
     }
-#endif
+#endif /* _WIN32 */
 
     if (log_fd < 0)
     {
@@ -611,7 +613,7 @@ static int initKafkaPublisher(void)
                               sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
             I_Error("%s: could not set kafka sasl.password", __func__);
     }
-#endif
+#endif /* HAVE_LIBSASL2 */
 
     rd_kafka_conf_set_dr_msg_cb(kafka_conf, dr_msg_cb);
 
@@ -665,7 +667,7 @@ static int writeKafkaLog(char *msg, size_t len)
     rd_kafka_resp_err_t err;
     err = rd_kafka_producev(kafka_producer,
                             RD_KAFKA_V_TOPIC(kafka_topic),
-                            RD_KAFKA_V_KEY(session_id, SESSION_ID_CHAR_LEN),
+                            RD_KAFKA_V_KEY(session_id, SESSION_ID_CHAR_LEN - 1),
                             RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
                             RD_KAFKA_V_VALUE(msg, len),
                             RD_KAFKA_V_OPAQUE(NULL),
