@@ -126,6 +126,12 @@ z_native.c           z_zone.h
 MEMORY_ZONE_SOURCE_FILES=\
 z_zone.c             z_zone.h
 
+cJSON.c              cJSON.h
+
+if HAVE_LIBTLS
+DUMB_WEBSOCKET_FILES = dws.c dws.h
+endif
+
 if HAVE_ZPOOL
 GAME_SOURCE_FILES=$(GAME_BASE_FILES) $(MEMORY_ZONE_SOURCE_FILES)
 else
@@ -141,7 +147,7 @@ deh_text.c
 
 # Some games support dehacked patches, some don't:
 
-SOURCE_FILES = $(COMMON_SOURCE_FILES) $(GAME_SOURCE_FILES)
+SOURCE_FILES = $(COMMON_SOURCE_FILES) $(GAME_SOURCE_FILES) $(DUMB_WEBSOCKET_FILES)
 SOURCE_FILES_WITH_DEH = $(SOURCE_FILES) $(DEHACKED_SOURCE_FILES)
 
 EXTRA_LIBS =                                               \
@@ -219,6 +225,19 @@ net_query.c          net_query.h           \
 net_structrw.c       net_structrw.h        \
 z_native.c           z_zone.h
 
+TEST_FILES=                                \
+cJSON.c              cJSON.h               \
+i_timer.c            i_timer.h             \
+i_system.c           i_system.h            \
+m_argv.c             m_argv.h              \
+m_config.c           m_config.h            \
+m_misc.c             m_misc.h              \
+tables.c                                   \
+z_native.c           z_zone.h
+
+noinst_LIBRARIES = libtest.a
+libtest_a_SOURCES = $(TEST_FILES)
+
 if HAVE_WINDRES
 @PROGRAM_PREFIX@setup_SOURCES=$(SETUP_FILES) $(COMMON_SOURCE_FILES) setup-res.rc
 else
@@ -291,4 +310,3 @@ MUS2MID_SRC_FILES = mus2mid.c memio.c z_native.c i_system.c m_argv.c m_misc.c
 mus2mid : $(MUS2MID_SRC_FILES)
 	$(CC) -DSTANDALONE -I$(top_builddir) $(CFLAGS) @LDFLAGS@ \
               $(MUS2MID_SRC_FILES) -o $@
-

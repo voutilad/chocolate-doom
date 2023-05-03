@@ -25,6 +25,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
+
 #include "config.h"
 #include "deh_main.h"
 #include "doomdef.h"
@@ -104,7 +111,7 @@ char *          savegamedir;
 char *          iwadfile;
 
 
-boolean         devparm;        // started game with -devparm
+extern boolean  devparm;        // started game with -devparm
 boolean         nomonsters;     // checkparm of -nomonsters
 boolean         respawnparm;    // checkparm of -respawn
 boolean         fastparm;       // checkparm of -fast

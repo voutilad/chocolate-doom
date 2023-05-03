@@ -1,0 +1,28 @@
+name: Compile and Check
+
+on:
+  push:
+    branches: [ personal ]
+  pull_request:
+    branches: [ personal ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: apt-update
+      run: sudo apt-get update
+    - name: install dependencies
+      run: sudo apt-get -yf install automake autoconf libsdl2-dev libsdl2-net-dev libsdl2-mixer-dev libpng-dev 
+    - uses: actions/checkout@v2
+    - name: autogen
+      run: ./autogen.sh
+    - name: configure
+      run: ./configure
+    - name: make
+      run: make
+    - name: make check
+      run: make check
+

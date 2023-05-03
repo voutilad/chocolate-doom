@@ -36,6 +36,7 @@
 #include "mouse.h"
 #include "multiplayer.h"
 #include "sound.h"
+#include "telemetry.h"
 
 #include "mode.h"
 
@@ -196,6 +197,7 @@ void InitBindings(void)
     BindSoundVariables();
     BindMiscVariables();
     BindMultiplayerVariables();
+    BindTelemetryVariables();
 }
 
 // Set the name of the executable program to run the game:
@@ -381,4 +383,3 @@ const iwad_t **GetIwads(void)
 {
     return iwads;
 }
-

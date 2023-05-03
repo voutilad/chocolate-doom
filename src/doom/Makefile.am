@@ -73,7 +73,8 @@ sounds.c           sounds.h     \
 statdump.c         statdump.h   \
 st_lib.c           st_lib.h     \
 st_stuff.c         st_stuff.h   \
-wi_stuff.c         wi_stuff.h
+wi_stuff.c         wi_stuff.h   \
+x_events.c         x_events.h
 
 if HAVE_ICONS
 
@@ -81,3 +82,14 @@ doom_icon.c : $(top_builddir)/data/doom.png
 	$(top_builddir)/data/convert-icon $(top_builddir)/data/doom.png $@
 
 endif
+
+check_PROGRAMS = test_events
+TESTS = $(check_PROGRAMS)
+
+# Force building libtest.a so "make checK" will work if it's not built
+../libtest.a:
+	$(MAKE) -C ..
+
+test_events_SOURCES = x_events.c x_events_test.c
+test_events_CFLAGS = -DTEST -I$(top_srcdir) -I$(top_srcdir)/src
+test_events_LDADD = ../libtest.a @LDFLAGS@ @SDLNET_LIBS@ @RDKAFKA_LIBS@
