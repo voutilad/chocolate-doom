@@ -117,7 +117,8 @@ w_file.c             w_file.h              \
 w_file_stdc.c                              \
 w_file_posix.c                             \
 w_file_win32.c                             \
-w_merge.c            w_merge.h
+w_merge.c            w_merge.h             \
+cJSON.c              cJSON.h
 
 
 MEMORY_NATIVE_SOURCE_FILES=\
@@ -126,7 +127,6 @@ z_native.c           z_zone.h
 MEMORY_ZONE_SOURCE_FILES=\
 z_zone.c             z_zone.h
 
-cJSON.c              cJSON.h
 
 if HAVE_LIBTLS
 DUMB_WEBSOCKET_FILES = dws.c dws.h
