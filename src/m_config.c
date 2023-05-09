@@ -753,6 +753,14 @@ static default_t	doom_defaults_list[] =
     //
 
     CONFIG_VARIABLE_STRING(telemetry_kafka_password),
+
+    //!
+    // @game doom
+    //
+    // SASL mechanism
+    //
+
+    CONFIG_VARIABLE_INT(telemetry_kafka_sasl_mechanism),
 #endif // HAVE_LIBSASL2
 #endif // HAVE_LIBRDKAFKA
 
@@ -2071,7 +2079,7 @@ static void SaveDefaultCollection(default_collection_t *collection)
     default_t *defaults;
     int i, v;
     FILE *f;
-	
+
     f = M_fopen(collection->filename, "w");
     if (!f)
 	return; // can't write the file, but don't complain

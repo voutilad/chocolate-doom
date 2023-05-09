@@ -78,6 +78,7 @@ static char *kafka_brokers = "localhost:9092";
 #ifdef HAVE_LIBSASL2
 static char *kafka_sasl_username = "";
 static char *kafka_sasl_password = "";
+static int kafka_sasl_mechanism = 0;
 #endif /* HAVE_LIBSASL2 */
 #endif /* HAVE_LIBRDKAFKA */
 
@@ -579,6 +580,8 @@ static void dr_msg_cb(rd_kafka_t *rk,
 static int initKafkaPublisher(void)
 {
     rd_kafka_conf_t *kafka_conf;
+    const char *mechanism;
+
     printf("X_InitTelemetry: starting Kafka producer using librdkafka v%s\n",
            rd_kafka_version_str());
 
@@ -598,8 +601,23 @@ static int initKafkaPublisher(void)
                               sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
             I_Error("%s: could not set kafka security.protocol", __func__);
 
+        switch (kafka_sasl_mechanism) {
+        case SASL_PLAIN:
+            mechanism = "PLAIN";
+            break;
+        case SCRAM_SHA_256:
+            mechanism = "SCRAM-SHA-256";
+            break;
+        case SCRAM_SHA_512:
+            mechanism = "SCRAM-SHA-512";
+            break;
+        default:
+            I_Error("%s: invalid sasl mechanism value (%d)", __func__,
+                    kafka_sasl_mechanism);
+            /* NOTREACHED */
+        }
         if (rd_kafka_conf_set(kafka_conf, "sasl.mechanism",
-                              "PLAIN", kafka_errbuf,
+                              mechanism, kafka_errbuf,
                               sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
             I_Error("%s: could not set kafka sasl mechanism", __func__);
 
@@ -906,6 +924,7 @@ void X_BindTelemetryVariables(void)
     M_BindStringVariable("telemetry_kafka_brokers", &kafka_brokers);
     M_BindStringVariable("telemetry_kafka_username", &kafka_sasl_username);
     M_BindStringVariable("telemetry_kafka_password", &kafka_sasl_password);
+    M_BindIntVariable("telemetry_kafka_sasl_mechanism", &kafka_sasl_mechanism);
 #endif
 #ifdef HAVE_LIBTLS
     M_BindStringVariable("telemetry_ws_host", &ws_host);

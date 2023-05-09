@@ -33,6 +33,7 @@ static char *kafka_brokers = NULL;
 #ifdef HAVE_LIBSASL2
 static char *kafka_sasl_username = NULL;
 static char *kafka_sasl_password = NULL;
+static int kafka_sasl_mechanism = SASL_PLAIN;
 #endif
 #endif
 
@@ -95,9 +96,14 @@ void ConfigTelemetry(TXT_UNCAST_ARG(widget), void *user_data)
                                    NULL),
                    TXT_NewHorizBox(TXT_NewLabel("SASL Password:  "),
                                    TXT_NewInputBox(&kafka_sasl_password, 50),
-#endif
                                    NULL),
-#endif
+                   TXT_NewHorizBox(TXT_NewLabel("SASL Mechanism:  "),
+                                   TXT_NewRadioButton("PLAIN", &kafka_sasl_mechanism, SASL_PLAIN),
+                                   TXT_NewRadioButton("SCRAM-SHA-256", &kafka_sasl_mechanism, SCRAM_SHA_256),
+                                   TXT_NewRadioButton("SCRAM-SHA-512", &kafka_sasl_mechanism, SCRAM_SHA_512),
+                                   NULL),
+#endif /* HAVE_LIBSASL2 */
+#endif /* HAVE_LIBRDKAFKA */
                    NULL);
 }
 
@@ -113,6 +119,7 @@ void BindTelemetryVariables(void)
 #ifdef HAVE_LIBSASL2
     M_BindStringVariable("telemetry_kafka_username", &kafka_sasl_username);
     M_BindStringVariable("telemetry_kafka_password", &kafka_sasl_password);
+    M_BindIntVariable("telemetry_kafka_sasl_mechanism", &kafka_sasl_mechanism);
 #endif // HAVE_LIBSASL2
 #endif // HAVE_LIBRDKAFKA
 #ifdef HAVE_LIBTLS

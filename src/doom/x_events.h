@@ -32,6 +32,11 @@
 #define KAFKA_MODE      3
 #define WEBSOCKET_MODE  4
 
+// SASL Mechanisms
+#define SASL_PLAIN      1
+#define SCRAM_SHA_256   2
+#define SCRAM_SHA_512   3
+
 typedef enum
 {
     e_start_level,
