@@ -650,7 +650,7 @@ static int closeKafkaPublisher(void)
     int flush_timeout_s = 15;
     int unflushed = 0;
 
-    printf("X_StopTelemetry: shutting down Kafka producer");
+    printf("X_StopTelemetry: shutting down Kafka producer\n");
 
     if (!kafka_producer)
     {
