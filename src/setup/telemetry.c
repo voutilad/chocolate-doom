@@ -30,6 +30,7 @@ static int udp_port = 10666;
 #ifdef HAVE_LIBRDKAFKA
 static char *kafka_topic = NULL;
 static char *kafka_brokers = NULL;
+static int kafka_ssl = 0;
 #ifdef HAVE_LIBSASL2
 static char *kafka_sasl_username = NULL;
 static char *kafka_sasl_password = NULL;
@@ -84,20 +85,24 @@ void ConfigTelemetry(TXT_UNCAST_ARG(widget), void *user_data)
                                    NULL),
 #ifdef HAVE_LIBRDKAFKA
                    TXT_NewSeparator("Kafka"),
-                   TXT_NewHorizBox(TXT_NewLabel("        Topic:  "),
+                   TXT_NewHorizBox(TXT_NewLabel("    Topic:  "),
                                    TXT_NewInputBox(&kafka_topic, 50),
                                    NULL),
-                   TXT_NewHorizBox(TXT_NewLabel("      Brokers:  "),
+                   TXT_NewHorizBox(TXT_NewLabel("  Brokers:  "),
                                    TXT_NewInputBox(&kafka_brokers, 50),
                                    NULL),
+                   TXT_NewHorizBox(TXT_NewLabel("  Use SSL:  "),
+                                   TXT_NewRadioButton("No", &kafka_ssl, 0),
+                                   TXT_NewRadioButton("Yes", &kafka_ssl, 1),
+                                   NULL),
 #ifdef HAVE_LIBSASL2
-                   TXT_NewHorizBox(TXT_NewLabel("    SASL User:  "),
+                   TXT_NewHorizBox(TXT_NewLabel("     User:  "),
                                    TXT_NewInputBox(&kafka_sasl_username, 50),
                                    NULL),
-                   TXT_NewHorizBox(TXT_NewLabel("SASL Password:  "),
+                   TXT_NewHorizBox(TXT_NewLabel(" Password:  "),
                                    TXT_NewInputBox(&kafka_sasl_password, 50),
                                    NULL),
-                   TXT_NewHorizBox(TXT_NewLabel("SASL Mechanism:  "),
+                   TXT_NewHorizBox(TXT_NewLabel("Mechanism:  "),
                                    TXT_NewRadioButton("PLAIN", &kafka_sasl_mechanism, SASL_PLAIN),
                                    TXT_NewRadioButton("SCRAM-SHA-256", &kafka_sasl_mechanism, SCRAM_SHA_256),
                                    TXT_NewRadioButton("SCRAM-SHA-512", &kafka_sasl_mechanism, SCRAM_SHA_512),
@@ -116,6 +121,7 @@ void BindTelemetryVariables(void)
 #ifdef HAVE_LIBRDKAFKA
     M_BindStringVariable("telemetry_kafka_topic", &kafka_topic);
     M_BindStringVariable("telemetry_kafka_brokers", &kafka_brokers);
+    M_BindIntVariable("telemetry_kafka_ssl", &kafka_ssl);
 #ifdef HAVE_LIBSASL2
     M_BindStringVariable("telemetry_kafka_username", &kafka_sasl_username);
     M_BindStringVariable("telemetry_kafka_password", &kafka_sasl_password);

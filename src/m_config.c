@@ -737,6 +737,15 @@ static default_t	doom_defaults_list[] =
     //
 
     CONFIG_VARIABLE_STRING(telemetry_kafka_brokers),
+
+    //!
+    // @game doom
+    //
+    // Use TLS with the Kafka API?
+    //
+
+    CONFIG_VARIABLE_INT(telemetry_kafka_ssl),
+
 #ifdef HAVE_LIBSASL2
     //!
     // @game doom

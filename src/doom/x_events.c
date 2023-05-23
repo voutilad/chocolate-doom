@@ -75,6 +75,7 @@ static int udp_port = 10666;
 #ifdef HAVE_LIBRDKAFKA
 static char *kafka_topic = "doom-telemetry";
 static char *kafka_brokers = "localhost:9092";
+static int kafka_ssl = 0;
 #ifdef HAVE_LIBSASL2
 static char *kafka_sasl_username = "";
 static char *kafka_sasl_password = "";
@@ -581,6 +582,7 @@ static int initKafkaPublisher(void)
 {
     rd_kafka_conf_t *kafka_conf;
     const char *mechanism;
+    const char *proto = "PLAINTEXT";
 
     printf("X_InitTelemetry: starting Kafka producer using librdkafka v%s\n",
            rd_kafka_version_str());
@@ -596,11 +598,6 @@ static int initKafkaPublisher(void)
 #ifdef HAVE_LIBSASL2
     if (strnlen(kafka_sasl_username, 50))
     {
-        if (rd_kafka_conf_set(kafka_conf, "security.protocol",
-                              "SASL_SSL", kafka_errbuf,
-                              sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
-            I_Error("%s: could not set kafka security.protocol", __func__);
-
         switch (kafka_sasl_mechanism) {
         case SASL_PLAIN:
             mechanism = "PLAIN";
@@ -630,8 +627,28 @@ static int initKafkaPublisher(void)
                               kafka_sasl_password, kafka_errbuf,
                               sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
             I_Error("%s: could not set kafka sasl.password", __func__);
+
+        if (kafka_ssl)
+            proto = "SASL_SSL";
+        else
+            proto = "SASL_PLAINTEXT";
     }
+#else /* No SASL */
+    if (kafka_ssl)
+        proto = "SSL";
+    else
+        proto = "PLAINTEXT";
 #endif /* HAVE_LIBSASL2 */
+
+    printf("%s: Using security.protocol = %s\n", __func__, proto);
+    if (rd_kafka_conf_set(kafka_conf, "security.protocol", proto, kafka_errbuf,
+                          sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
+        I_Error("%s: could not set kafka security.protocol", __func__);
+
+    /* Performance tuning... */
+    if (rd_kafka_conf_set(kafka_conf, "linger.ms", "5", kafka_errbuf,
+                          sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
+        I_Error("%s: could not set linger.ms", __func__);
 
     rd_kafka_conf_set_dr_msg_cb(kafka_conf, dr_msg_cb);
 
@@ -682,7 +699,10 @@ static int closeKafkaPublisher(void)
  */
 static int writeKafkaLog(char *msg, size_t len)
 {
+    int events = 0;
+    static int flushed = 0;
     rd_kafka_resp_err_t err;
+again:
     err = rd_kafka_producev(kafka_producer,
                             RD_KAFKA_V_TOPIC(kafka_topic),
                             RD_KAFKA_V_KEY(session_id, SESSION_ID_CHAR_LEN - 1),
@@ -696,6 +716,9 @@ static int writeKafkaLog(char *msg, size_t len)
         {
             // queue full...for now we just shrug
             printf("%s: internal Kafka outbound queue is full :-(\n", __func__);
+            events = rd_kafka_poll(kafka_producer, 500); // yolo
+            if (events > 0)
+                goto again;
         }
         else
         {
@@ -704,6 +727,19 @@ static int writeKafkaLog(char *msg, size_t len)
 
         return 0;
     }
+
+    // We need to poll every so often. For now, do it every 1024 frames because
+    // I like that number...and it's approximately every every 30 seconds.
+    if (I_GetTime() % 1024 == 0) {
+        // We may record multiple events per frame, so only flush once per frame
+        if (!flushed) {
+            events = rd_kafka_poll(kafka_producer, 500); // yolo
+            if (events > 0)
+                printf("%s: flushed %d events\n", __func__, events);
+        }
+        flushed = 1;
+    } else
+        flushed = 0;
 
     // XXX: this is 100% a lie as technically can't guarantee anything was
     // transmitted since rdkafka does so asynchronously.
@@ -922,10 +958,13 @@ void X_BindTelemetryVariables(void)
 #ifdef HAVE_LIBRDKAFKA
     M_BindStringVariable("telemetry_kafka_topic", &kafka_topic);
     M_BindStringVariable("telemetry_kafka_brokers", &kafka_brokers);
+    M_BindIntVariable("telemetry_kafka_ssl", &kafka_ssl);
+#ifdef HAVE_LIBSASL2
     M_BindStringVariable("telemetry_kafka_username", &kafka_sasl_username);
     M_BindStringVariable("telemetry_kafka_password", &kafka_sasl_password);
     M_BindIntVariable("telemetry_kafka_sasl_mechanism", &kafka_sasl_mechanism);
-#endif
+#endif /* HAVE_LIBSASL2 */
+#endif /* HAVE_LIBRDKAFKA */
 #ifdef HAVE_LIBTLS
     M_BindStringVariable("telemetry_ws_host", &ws_host);
     M_BindIntVariable("telemetry_ws_port", &ws_port);
