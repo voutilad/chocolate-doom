@@ -898,9 +898,27 @@ again:
 
 int readKafkaLog(char *buf, size_t len)
 {
-    memset(buf, 'X', len);
-    buf[len] = '\0';
-    return len;
+    int ret = 0;
+    rd_kafka_message_t *msg = NULL;
+
+    msg = rd_kafka_consumer_poll(kafka_consumer, 10);
+
+    if (msg == NULL) // no message :(
+        return 0;
+
+    if (msg->err) {
+        printf("%s: %s\n", __func__, rd_kafka_message_errstr(msg));
+        ret = -1;
+    } else {
+        // xxx check key
+        // xxx validate payload is printable
+        M_StringCopy(buf, msg->payload, len);
+        ret = len;
+    }
+
+    rd_kafka_message_destroy(msg);
+
+    return ret;
 }
 
 #else // no kafka
