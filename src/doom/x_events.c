@@ -997,7 +997,7 @@ int writeWebsocketLog(char *msg, size_t len)
 #endif
 
 // Our no-op reader for telemetry systems that don't give feedback.
-static int noOpReader(char *buf, size_t len)
+static int readNoOp(char *buf, size_t len)
 {
     return 0;
 }
@@ -1020,28 +1020,28 @@ int X_InitTelemetry(void)
                 logger.init = initFileLog;
                 logger.close = closeFileLog;
                 logger.write = writeFileLog;
-                logger.read = noOpReader;
+                logger.read = readNoOp;
                 break;
             case UDP_MODE:
                 logger.type = UDP_MODE;
                 logger.init = initUdpLog;
                 logger.close = closeUdpLog;
                 logger.write = writeUdpLog;
-                logger.read = noOpReader;
+                logger.read = readNoOp;
                 break;
             case KAFKA_MODE:
                 logger.type = KAFKA_MODE;
                 logger.init = initKafka;
                 logger.close = closeKafka;
                 logger.write = writeKafkaLog;
-                logger.read = noOpReader;
+                logger.read = readNoOp;
                 break;
             case WEBSOCKET_MODE:
                 logger.type = WEBSOCKET_MODE;
                 logger.init = initWebsocketPublisher;
                 logger.close = closeWebsocketPublisher;
                 logger.write = writeWebsocketLog;
-                logger.read = noOpReader;
+                logger.read = readNoOp;
                 break;
             default:
                 I_Error("X_InitTelemetry: Unsupported telemetry mode (%d)", telemetry_mode);
