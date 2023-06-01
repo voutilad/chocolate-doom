@@ -135,6 +135,7 @@ char		mapdir[1024];           // directory of development maps
 int             show_endoom = 1;
 int             show_diskicon = 1;
 
+char            x_feedback[42];           // telemetry feedback
 
 void D_ConnectNetGame(void);
 void D_CheckNetGame(void);
@@ -448,6 +449,12 @@ void D_RunFrame()
 
     S_UpdateSounds (players[consoleplayer].mo);// move positional sounds
 
+    // XXX try fetching updates from telemetry
+    if (X_GetFeedback(x_feedback, sizeof(x_feedback)) > 0) {
+        printf("%s: got feedback: %s\n", __func__, x_feedback);
+        memset(&x_feedback, 0, sizeof(x_feedback));
+    }
+
     // Update display, next frame, with current state if no profiling is on
     if (screenvisible && !nodrawers)
     {
@@ -501,6 +508,9 @@ void D_DoomLoop (void)
     {
         wipegamestate = gamestate;
     }
+
+    // XXX move this?
+    memset(&x_feedback, 0, sizeof(x_feedback));
 
     while (1)
     {

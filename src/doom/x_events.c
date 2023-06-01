@@ -74,6 +74,7 @@ static int udp_port = 10666;
 
 #ifdef HAVE_LIBRDKAFKA
 static char *kafka_topic = "doom-telemetry";
+static char *kafka_feedback_topic = "doom-feedback";
 static char *kafka_brokers = "localhost:9092";
 static int kafka_ssl = 0;
 #ifdef HAVE_LIBSASL2
@@ -671,8 +672,12 @@ static int initKafkaConsumer(void)
     // XXX some copy-pasta for now
 
     rd_kafka_conf_t *kafka_conf = NULL;
+    rd_kafka_topic_partition_list_t *subscription = NULL;
+    rd_kafka_resp_err_t err;
+
     const char *mechanism;
     const char *proto = "PLAINTEXT";
+    char *topic = kafka_feedback_topic; // TODO: config param
 
     printf("X_InitTelemetry: starting Kafka consumer using librdkafka v%s\n",
            rd_kafka_version_str());
@@ -686,7 +691,18 @@ static int initKafkaConsumer(void)
     if (rd_kafka_conf_set(kafka_conf, "bootstrap.servers",
                           kafka_brokers, kafka_errbuf,
                           sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
-        I_Error("%s: could not set Kafka brokers, %s", __func__, kafka_errbuf);
+        I_Error("%s: could not set Kafka brokers: %s", __func__, kafka_errbuf);
+
+    if (rd_kafka_conf_set(kafka_conf, "group.id",
+                          "doom.feedback.consumer", kafka_errbuf,
+                          sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
+        I_Error("%s: could not set group.id: %s", __func__, kafka_errbuf);
+
+    if (rd_kafka_conf_set(kafka_conf, "auto.offset.reset",
+                          "latest", kafka_errbuf,
+                          sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
+        I_Error("%s: could not set auto.offset.reset: %s", __func__,
+                kafka_errbuf);
 
 #ifdef HAVE_LIBSASL2
     if (strnlen(kafka_sasl_username, 50))
@@ -741,7 +757,26 @@ static int initKafkaConsumer(void)
     kafka_consumer = rd_kafka_new(RD_KAFKA_CONSUMER, kafka_conf,
                                   kafka_errbuf, sizeof(kafka_errbuf));
     if (!kafka_consumer)
-        I_Error("%s: could not create kafka consumer, %s", __func__, kafka_errbuf);
+        I_Error("%s: could not create kafka consumer, %s\n", __func__,
+                kafka_errbuf);
+    kafka_conf = NULL;
+
+    rd_kafka_poll_set_consumer(kafka_consumer);
+
+    // Only support a single topic for now with no partition assignemnt.
+    subscription = rd_kafka_topic_partition_list_new(1);
+    rd_kafka_topic_partition_list_add(subscription, topic,
+                                      RD_KAFKA_PARTITION_UA);
+
+    // Make the subscription.
+    err = rd_kafka_subscribe(kafka_consumer, subscription);
+    if (err) {
+        I_Error("%s: failed to subscribe to %s: %s\n", __func__,
+                topic, rd_kafka_err2str(err));
+    }
+
+    // We can release this object now.
+    rd_kafka_topic_partition_list_destroy(subscription);
 
     return 0;
 }
