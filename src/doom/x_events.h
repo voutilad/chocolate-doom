@@ -86,6 +86,9 @@ typedef struct {
     // Writes to the backing logger, should return bytes written successfully
     // or < 0 on error.
     int (*write)(char* buf, size_t len);
+
+    // Read a message back from the telemetry service.
+    int (*read)(char* buf, size_t len);
 } Logger;
 
 int X_InitTelemetry(void);
@@ -114,6 +117,8 @@ void X_LogHealthPickup(player_t *player, int amount);
 void X_LogArmorPickup(mobj_t *actor, int armortype);
 void X_LogWeaponPickup(mobj_t *actor, weapontype_t weapon);
 void X_LogCardPickup(player_t *player, card_t card);
+
+int X_GetFeedback(char *buf, size_t buflen);
 
 void X_BindTelemetryVariables(void);
 

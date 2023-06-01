@@ -89,7 +89,7 @@ void ConfigTelemetry(TXT_UNCAST_ARG(widget), void *user_data)
                                    TXT_NewInputBox(&kafka_topic, 50),
                                    NULL),
                    TXT_NewHorizBox(TXT_NewLabel("  Brokers:  "),
-                                   TXT_NewInputBox(&kafka_brokers, 50),
+                                   TXT_NewInputBox(&kafka_brokers, 70),
                                    NULL),
                    TXT_NewHorizBox(TXT_NewLabel("  Use SSL:  "),
                                    TXT_NewRadioButton("No", &kafka_ssl, 0),

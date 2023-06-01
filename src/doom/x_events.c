@@ -93,7 +93,7 @@ static int ws_tls_enabled = 0;
 #define ASSERT_TELEMETRY_ON(...) if (!telemetry_enabled) return __VA_ARGS__
 
 // For now, we use a single global logger instance to keep things simple.
-static Logger logger = { -1, NULL, NULL, NULL };
+static Logger logger = { -1, NULL, NULL, NULL, NULL };
 
 // Used to prevent constant malloc when printing json
 static char* jsonbuf = NULL;
@@ -121,7 +121,8 @@ static struct websocket ws;
 #endif
 
 #ifdef HAVE_LIBRDKAFKA
-static rd_kafka_t *kafka_producer;
+static rd_kafka_t *kafka_producer = NULL;
+static rd_kafka_t *kafka_consumer = NULL;
 static char kafka_errbuf[512];
 #endif
 
@@ -573,14 +574,14 @@ static void dr_msg_cb(rd_kafka_t *rk,
 {
     if (rkmessage->err)
     {
-        printf("X_Telemetry: kafka message dlivery failed, %s\n",
+        printf("X_Telemetry: kafka message delivery failed, %s\n",
                rd_kafka_err2str(rkmessage->err));
     }
 }
 
 static int initKafkaPublisher(void)
 {
-    rd_kafka_conf_t *kafka_conf;
+    rd_kafka_conf_t *kafka_conf = NULL;
     const char *mechanism;
     const char *proto = "PLAINTEXT";
 
@@ -590,6 +591,9 @@ static int initKafkaPublisher(void)
     memset(kafka_errbuf, 0, sizeof(kafka_errbuf));
 
     kafka_conf = rd_kafka_conf_new();
+    if (kafka_conf == NULL)
+        I_Error("%s: failed to allocate publisher config", __func__);
+
     if (rd_kafka_conf_set(kafka_conf, "bootstrap.servers",
                           kafka_brokers, kafka_errbuf,
                           sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
@@ -662,6 +666,98 @@ static int initKafkaPublisher(void)
     return 0;
 }
 
+static int initKafkaConsumer(void)
+{
+    // XXX some copy-pasta for now
+
+    rd_kafka_conf_t *kafka_conf = NULL;
+    const char *mechanism;
+    const char *proto = "PLAINTEXT";
+
+    printf("X_InitTelemetry: starting Kafka consumer using librdkafka v%s\n",
+           rd_kafka_version_str());
+
+    memset(kafka_errbuf, 0, sizeof(kafka_errbuf));
+
+    kafka_conf = rd_kafka_conf_new();
+    if (kafka_conf == NULL)
+        I_Error("%s: failed to allocate consumer config", __func__);
+
+    if (rd_kafka_conf_set(kafka_conf, "bootstrap.servers",
+                          kafka_brokers, kafka_errbuf,
+                          sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
+        I_Error("%s: could not set Kafka brokers, %s", __func__, kafka_errbuf);
+
+#ifdef HAVE_LIBSASL2
+    if (strnlen(kafka_sasl_username, 50))
+    {
+        switch (kafka_sasl_mechanism) {
+        case SASL_PLAIN:
+            mechanism = "PLAIN";
+            break;
+        case SCRAM_SHA_256:
+            mechanism = "SCRAM-SHA-256";
+            break;
+        case SCRAM_SHA_512:
+            mechanism = "SCRAM-SHA-512";
+            break;
+        default:
+            I_Error("%s: invalid sasl mechanism value (%d)", __func__,
+                    kafka_sasl_mechanism);
+            /* NOTREACHED */
+        }
+        if (rd_kafka_conf_set(kafka_conf, "sasl.mechanism",
+                              mechanism, kafka_errbuf,
+                              sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
+            I_Error("%s: could not set kafka sasl mechanism", __func__);
+
+        if (rd_kafka_conf_set(kafka_conf, "sasl.username",
+                              kafka_sasl_username, kafka_errbuf,
+                              sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
+            I_Error("%s: could not set kafka sasl.username", __func__);
+
+        if (rd_kafka_conf_set(kafka_conf, "sasl.password",
+                              kafka_sasl_password, kafka_errbuf,
+                              sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
+            I_Error("%s: could not set kafka sasl.password", __func__);
+
+        if (kafka_ssl)
+            proto = "SASL_SSL";
+        else
+            proto = "SASL_PLAINTEXT";
+    }
+#else /* No SASL */
+    if (kafka_ssl)
+        proto = "SSL";
+    else
+        proto = "PLAINTEXT";
+#endif /* HAVE_LIBSASL2 */
+
+    printf("%s: Using security.protocol = %s\n", __func__, proto);
+    if (rd_kafka_conf_set(kafka_conf, "security.protocol", proto, kafka_errbuf,
+                          sizeof(kafka_errbuf)) != RD_KAFKA_CONF_OK)
+        I_Error("%s: could not set kafka security.protocol", __func__);
+
+    kafka_consumer = rd_kafka_new(RD_KAFKA_CONSUMER, kafka_conf,
+                                  kafka_errbuf, sizeof(kafka_errbuf));
+    if (!kafka_consumer)
+        I_Error("%s: could not create kafka consumer, %s", __func__, kafka_errbuf);
+
+    return 0;
+}
+
+static int initKafka(void) {
+    int ret = 0;
+
+    ret = initKafkaPublisher();
+    if (ret)
+        return ret;
+
+    ret = initKafkaConsumer();
+
+    return ret;
+}
+
 static int closeKafkaPublisher(void)
 {
     int flush_timeout_s = 15;
@@ -691,6 +787,25 @@ static int closeKafkaPublisher(void)
     kafka_producer = NULL;
 
     return 0;
+}
+
+static int closeKafkaConsumer(void)
+{
+    // YOLO for now.
+    rd_kafka_destroy(kafka_consumer);
+    kafka_consumer = NULL;
+
+    return 0;
+}
+
+int closeKafka(void)
+{
+    int ret = 0;
+
+    ret = closeKafkaPublisher();
+    ret |= closeKafkaConsumer();
+
+    return ret;
 }
 
 /*
@@ -748,7 +863,7 @@ again:
 
 #else // no kafka
 
-int initKafkaPublisher(void)
+int initKafka(void)
 {
     printf("X_InitTelemetry: kafka mode enabled, but not compiled in!\n");
     telemetry_enabled = 0;
@@ -756,7 +871,7 @@ int initKafkaPublisher(void)
     return 0;
 }
 
-int closeKafkaPublisher(void)
+int closeKafka(void)
 {
     return 0;
 }
@@ -846,6 +961,13 @@ int writeWebsocketLog(char *msg, size_t len)
 
 #endif
 
+// Our no-op reader for telemetry systems that don't give feedback.
+static int noOpReader(char *buf, size_t len)
+{
+    return 0;
+}
+
+
 //////////////////////////////////////////////////////////////////////////////
 //////// Basic framework housekeeping
 
@@ -863,24 +985,28 @@ int X_InitTelemetry(void)
                 logger.init = initFileLog;
                 logger.close = closeFileLog;
                 logger.write = writeFileLog;
+                logger.read = noOpReader;
                 break;
             case UDP_MODE:
                 logger.type = UDP_MODE;
                 logger.init = initUdpLog;
                 logger.close = closeUdpLog;
                 logger.write = writeUdpLog;
+                logger.read = noOpReader;
                 break;
             case KAFKA_MODE:
                 logger.type = KAFKA_MODE;
-                logger.init = initKafkaPublisher;
-                logger.close = closeKafkaPublisher;
+                logger.init = initKafka;
+                logger.close = closeKafka;
                 logger.write = writeKafkaLog;
+                logger.read = noOpReader;
                 break;
             case WEBSOCKET_MODE:
                 logger.type = WEBSOCKET_MODE;
                 logger.init = initWebsocketPublisher;
                 logger.close = closeWebsocketPublisher;
                 logger.write = writeWebsocketLog;
+                logger.read = noOpReader;
                 break;
             default:
                 I_Error("X_InitTelemetry: Unsupported telemetry mode (%d)", telemetry_mode);
@@ -1095,4 +1221,21 @@ void X_LogCardPickup(player_t *player, card_t card)
     // xxx: card_t is an enum, we should resolve it in the future
     xevent_t ev = { e_pickup_card, player->mo, NULL };
     logEventWithExtraNumber(&ev, "card", card);
+}
+
+//// Get some feedback from a the external telemetry service.
+//
+// Returns number of bytes populated in buf on success, otherwise -1.
+int X_GetFeedback(char *buf, size_t buflen)
+{
+    int res = -1;
+
+    if (buf == NULL || buflen == 0)
+        return -1;
+
+    res = logger.read(buf, buflen);
+    if (res < 0)
+        printf("%s: sadness...", __func__);
+
+    return res;
 }
