@@ -451,8 +451,9 @@ void D_RunFrame()
 
     // XXX try fetching updates from telemetry
     if (X_GetFeedback(x_feedback, sizeof(x_feedback)) > 0) {
-        printf("%s: got feedback: %s\n", __func__, x_feedback);
-        memset(&x_feedback, 0, sizeof(x_feedback));
+        players[consoleplayer].x_feedback = x_feedback;
+        printf("%s: got feedback: %s\n", __func__,
+               players[consoleplayer].x_feedback);
     }
 
     // Update display, next frame, with current state if no profiling is on
