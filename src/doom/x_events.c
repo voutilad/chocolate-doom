@@ -896,6 +896,13 @@ again:
     return len;
 }
 
+int readKafkaLog(char *buf, size_t len)
+{
+    memset(buf, 'X', len);
+    buf[len] = '\0';
+    return len;
+}
+
 #else // no kafka
 
 int initKafka(void)
@@ -914,6 +921,11 @@ int closeKafka(void)
 int writeKafkaLog(char *msg, size_t len)
 {
     return 1;
+}
+
+int readKafkaLog(char *buf, size_t len)
+{
+    return 0;
 }
 #endif
 
@@ -1034,7 +1046,7 @@ int X_InitTelemetry(void)
                 logger.init = initKafka;
                 logger.close = closeKafka;
                 logger.write = writeKafkaLog;
-                logger.read = readNoOp;
+                logger.read = readKafkaLog;
                 break;
             case WEBSOCKET_MODE:
                 logger.type = WEBSOCKET_MODE;
