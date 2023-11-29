@@ -28,6 +28,10 @@
 #include <unistd.h>
 #endif /* _WIN32 */
 
+#include <SDL2/SDL_endian.h>
+#ifndef SDL_LIL_ENDIAN
+#error "can't find sdl endianness stuff"
+#endif
 
 #include <fcntl.h>
 #include <stdlib.h>
@@ -54,7 +58,7 @@
 #define MAX_FILENAME_LEN 128
 
 // Maximal size of our serialized JSON, picked to be < the typical MTU setting
-// minus 1 byte to reserve for '\n'
+// minus 1 byte to reserve for 'NUL'
 #define JSON_BUFFER_LEN 1023
 
 
@@ -89,6 +93,7 @@ static char *ws_host = "localhost";
 static int ws_port = 8000;
 static char *ws_resource = "/";
 static int ws_tls_enabled = 0;
+static int ws_kv_mode = 1;
 #endif /* HAVE_LIBTLS */
 
 #define ASSERT_TELEMETRY_ON(...) if (!telemetry_enabled) return __VA_ARGS__
@@ -375,15 +380,14 @@ static void logEventWithExtra(xevent_t *ev, const char* key, cJSON* extra)
     {
         buflen = strlen(jsonbuf);
 
-        if (buflen > JSON_BUFFER_LEN)
+        if (buflen >= JSON_BUFFER_LEN)
         {
             I_Error("XXX: something horribly wrong with jsonbuf!");
         }
 
-        // the world is prettier when we end a message with a newline ;-)
-        jsonbuf[buflen] = '\n';
+        jsonbuf[buflen] = '\0';
 
-        bytes = logger.write(jsonbuf, buflen + 1);
+        bytes = logger.write(jsonbuf, buflen); // less the NUL byte
         if (bytes < 1)
         {
             // TODO: how do we want to handle possible errors?
@@ -996,11 +1000,67 @@ int closeWebsocketPublisher(void)
 
 int writeWebsocketLog(char *msg, size_t len)
 {
-    ssize_t sent;
+    ssize_t sent, idx = 0;
+    uint16_t sz_key = 0, sz_json = 0;
+    char *p = msg;
 
-    sent = dumb_send(&ws, msg, len);
+    static int fd = -1;
+
+    if (fd < 0) {
+        fd = open("/Users/dv/doom.csv", O_RDWR | O_CREAT | O_TRUNC);
+    }
+
+    // XXX for now we keep is simple and preallocate a buffer on the stack
+    //     that can handle store our encoded k/v pair (if using ws_kv_mode).
+    unsigned char buf[2 + SESSION_ID_CHAR_LEN + 2 + JSON_BUFFER_LEN];
+
+    if (ws_kv_mode) {
+        if (len > 65535)
+            I_Error("%s: message size too large for kv mode", __func__);
+
+        // In KV mode, we encode the data as key/value pairs using the simple
+        // protocol of length-prefixed byte arrays in tuple order of (k, v).
+        // TODO: extend dws to use a vectorized dumb_sendv that can take a
+        //       series of small buffers to prevent copying here.
+        memset(buf, 0, sizeof(buf));
+
+        // key length less the NUL byte
+        sz_key = (uint16_t)strnlen(session_id, 65535);
+#if SDL_BYTEORDER == SDL_LIL_ENDIAN
+        buf[0] = (unsigned char)(sz_key >> 8);
+        buf[1] = (unsigned char)(sz_key & 0xff);
+#else
+        buf[0] = (unsigned char)(sz_key & 0xff);
+        buf[1] = (unsigned char)(sz_key >> 8);
+#endif /* SDL_BYTEORDER */
+
+        // key payload less the NUL byte
+        memcpy(buf + 2, session_id, sz_key);
+        idx = 2 + sz_key;
+
+        // value length less the NUL byte (?)
+        sz_json = (uint16_t)len;
+#if SDL_BYTEORDER == SDL_LIL_ENDIAN
+        buf[idx] = (unsigned char)(sz_json >> 8);
+        buf[idx+1] = (unsigned char)(sz_json & 0xff);
+#else
+        buf[idx] = (unsigned char)(sz_json & 0xff);
+        buf[idx+1] = (unsigned char)(sz_json >> 8);
+#endif /* SDL_BYTEORDER */
+
+        // value payload less the NUL byte
+        memcpy(buf + idx + 2, msg, sz_json);
+        p = buf;
+        // adjust our true length
+        len = 2 + sz_key + 2 + sz_json;
+    }
+
+    sent = dumb_send(&ws, p, len);
     if (sent < 1)
         I_Error("%s: websocket failed send (%zd)", __func__, sent);
+
+    dprintf(fd, "%zu,%u\n", len, counter);
+    //  flush(fd);
 
     return sent;
 }

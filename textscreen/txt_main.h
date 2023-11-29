@@ -18,7 +18,7 @@
 #ifndef TXT_MAIN_H
 #define TXT_MAIN_H
 
-// For the moment, txt_sdl.c is the only implementation of the base 
+// For the moment, txt_sdl.c is the only implementation of the base
 // text mode screen API:
 
 #include "txt_sdl.h"
@@ -70,8 +70,8 @@
 
 // Screen size
 
-#define TXT_SCREEN_W 80
-#define TXT_SCREEN_H 25
+#define TXT_SCREEN_W 100
+#define TXT_SCREEN_H 30
 
 #define TXT_COLOR_BLINKING (1 << 3)
 
@@ -200,4 +200,3 @@ int TXT_vsnprintf(char *buf, size_t buf_len, const char *s, va_list args);
 int TXT_snprintf(char *buf, size_t buf_len, const char *s, ...) PRINTF_ATTR(3, 4);
 
 #endif /* #ifndef TXT_MAIN_H */
-

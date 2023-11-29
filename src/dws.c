@@ -254,7 +254,7 @@ static ssize_t
 init_frame(uint8_t *frame, enum FRAME_OPCODE type, uint8_t mask[4], size_t len)
 {
 	int idx = 0;
-	uint16_t payload;
+	uint16_t payload_length;
 
 	// Just a quick safety check: we don't do large payloads
 	if (len > (1 << 24))
@@ -265,16 +265,18 @@ init_frame(uint8_t *frame, enum FRAME_OPCODE type, uint8_t mask[4], size_t len)
 		// The trivial "7 bit" payload case
 		frame[1] = 0x80 + (uint8_t) len;
 		idx = 1;
-	} else {
+	} else if (len >= 126 && len < 65536) {
 		// The "7+16 bits" payload len case
 		frame[1] = 0x80 + 126;
 
 		// Payload length in network byte order
-		payload = htons(len);
-		frame[2] = payload & 0xFF;
-		frame[3] = payload >> 8;
+		payload_length = htons(len);
+		frame[2] = payload_length & 0xFF;
+		frame[3] = payload_length >> 8;
 		idx = 3;
-	}
+	} else
+            return -1;
+
 	// And that's it, because 2^24 bytes should be enough for anyone!
 
 	// Gotta send a copy of the mask
@@ -471,7 +473,7 @@ dumb_connect_tls(struct websocket *ws, char *host, char *port, int insecure)
 	// TODO: better error handling...for now we hard fail for debugging
 	if (ret)
 		crap(ret, "dumb_connect failed");
-	
+
 	ws->ctx = tls_client();
 	if (ws->ctx == NULL)
 		crap(1, "%s: tls_client failure", __func__);
