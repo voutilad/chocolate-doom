@@ -117,7 +117,8 @@ w_file.c             w_file.h              \
 w_file_stdc.c                              \
 w_file_posix.c                             \
 w_file_win32.c                             \
-w_merge.c            w_merge.h
+w_merge.c            w_merge.h             \
+cJSON.c              cJSON.h
 
 
 MEMORY_NATIVE_SOURCE_FILES=\
@@ -132,6 +133,10 @@ else
 GAME_SOURCE_FILES=$(GAME_BASE_FILES) $(MEMORY_NATIVE_SOURCE_FILES)
 endif
 
+if HAVE_LIBTLS
+DWS_FILES = dws.c dws.h
+endif
+
 DEHACKED_SOURCE_FILES =                    \
 deh_defs.h                                 \
 deh_io.c             deh_io.h              \
@@ -141,7 +146,7 @@ deh_text.c
 
 # Some games support dehacked patches, some don't:
 
-SOURCE_FILES = $(COMMON_SOURCE_FILES) $(GAME_SOURCE_FILES)
+SOURCE_FILES = $(COMMON_SOURCE_FILES) $(GAME_SOURCE_FILES) $(DWS_FILES)
 SOURCE_FILES_WITH_DEH = $(SOURCE_FILES) $(DEHACKED_SOURCE_FILES)
 
 EXTRA_LIBS =                                               \
@@ -291,4 +296,3 @@ MUS2MID_SRC_FILES = mus2mid.c memio.c z_native.c i_system.c m_argv.c m_misc.c
 mus2mid : $(MUS2MID_SRC_FILES)
 	$(CC) -DSTANDALONE -I$(top_builddir) $(CFLAGS) @LDFLAGS@ \
               $(MUS2MID_SRC_FILES) -o $@
-

@@ -19,7 +19,8 @@ libsetup_a_SOURCES =                            \
     txt_joyaxis.c     txt_joyaxis.h             \
     txt_joybinput.c   txt_joybinput.h           \
     txt_keyinput.c    txt_keyinput.h            \
-    txt_mouseinput.c  txt_mouseinput.h
+    txt_mouseinput.c  txt_mouseinput.h          \
+    telemetry.c       telemetry.h
 
 EXTRA_DIST=                                     \
     CMakeLists.txt                              \
@@ -39,4 +40,3 @@ setup_icon.c : $(top_builddir)/data/setup.png
 	$(top_builddir)/data/convert-icon $(top_builddir)/data/setup.png $@
 
 endif
-

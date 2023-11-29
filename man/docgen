@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# 
+#
 # Chocolate Doom self-documentation tool.  This works similar to javadoc
 # or doxygen, but documents command line parameters and configuration
 # file values, generating documentation in Unix manpage, wikitext and
@@ -180,6 +180,7 @@ categories = (
     ("demo",    Category("Demo options")),
     ("compat",  Category("Compatibility")),
     ("obscure", Category("Obscure and less-used options")),
+    ("telemetry", Category("Telemetry")),
 )
 
 wikipages = []
@@ -216,7 +217,7 @@ class Parameter:
 
             option_type = match.group(1)
             data = match.group(2)
-            
+
             if option_type == "arg":
                 self.args = data
             elif option_type == "platform":
@@ -606,4 +607,3 @@ else:
 
     # Generate the output
     output_function(documentation_targets, substs, template)
-

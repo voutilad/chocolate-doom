@@ -38,6 +38,8 @@
 #include "multiplayer.h"
 #include "sound.h"
 
+#include "telemetry.h"
+
 #define WINDOW_HELP_URL "https://www.chocolate-doom.org/setup"
 
 static const int cheat_sequence[] =
@@ -140,7 +142,7 @@ static void QuitConfirm(void *unused1, void *unused2)
 
     window = TXT_NewWindow(NULL);
 
-    TXT_AddWidgets(window, 
+    TXT_AddWidgets(window,
                    label = TXT_NewLabel("Exiting setup.\nSave settings?"),
                    TXT_NewStrut(24, 0),
                    yes_button = TXT_NewButton2("  Yes  ", DoQuit, DoQuit),
@@ -153,7 +155,7 @@ static void QuitConfirm(void *unused1, void *unused2)
 
     // Only an "abort" button in the middle.
     TXT_SetWindowAction(window, TXT_HORIZ_LEFT, NULL);
-    TXT_SetWindowAction(window, TXT_HORIZ_CENTER, 
+    TXT_SetWindowAction(window, TXT_HORIZ_CENTER,
                         TXT_NewWindowAbortAction(window));
     TXT_SetWindowAction(window, TXT_HORIZ_RIGHT, NULL);
 }
@@ -161,7 +163,7 @@ static void QuitConfirm(void *unused1, void *unused2)
 static void LaunchDoom(void *unused1, void *unused2)
 {
     execute_context_t *exec;
-    
+
     // Save configuration first
 
     M_SaveDefaults();
@@ -228,6 +230,8 @@ void MainMenu(void)
                        (TxtWidgetSignalFunc) ConfigJoystick, NULL),
         TXT_NewButton2("Compatibility",
                        (TxtWidgetSignalFunc) CompatibilitySettings, NULL),
+	TXT_NewButton2("Configure Telemetry",
+                       (TxtWidgetSignalFunc) ConfigTelemetry, NULL),
         GetLaunchButton(),
         TXT_NewStrut(0, 1),
         TXT_NewButton2("Start a Network Game",
@@ -320,7 +324,7 @@ static void InitTextscreen(void)
 }
 
 
-// 
+//
 // Initialize and run the textscreen GUI.
 //
 

@@ -22,7 +22,7 @@ AC_CHECK_PROG(HAVE_PYTHON, python3, true, false)
 
 OPT_LEVEL=2
 
-# If this is gcc, we have some options we'd like to turn on.  Turn on 
+# If this is gcc, we have some options we'd like to turn on.  Turn on
 # optimisation and debugging symbols.
 
 if test "$GCC" = "yes"
@@ -166,6 +166,62 @@ case "$host" in
     ;;
   *)
 esac
+
+# Check for librdkafka.
+AC_ARG_WITH([librdkafka],
+AS_HELP_STRING([--without-librdkafka],
+    [Build without librdkafka @<:@default=check@:>@]),
+[],
+[
+    [with_librdkafka=check]
+])
+AS_IF([test "x$with_librdkafka" != xno], [
+    PKG_CHECK_MODULES(RDKAFKA, rdkafka >= 1.4.0, [
+        AC_DEFINE([HAVE_LIBRDKAFKA], [1], [librdkafka installed])
+        PKG_CHECK_MODULES(SASL2, libsasl2 >= 2.1.0, [
+            AC_DEFINE([HAVE_LIBSASL2], [1], [libsasl2 installed])
+        ],
+        [
+            AC_MSG_WARN([could not find libsasl2])
+        ])
+    ], [
+        AS_IF([test "x$with_librdkafka" != xcheck], [AC_MSG_FAILURE(
+            [--with-librdkafka was given, but test for librdkafka failed])
+        ])
+    ])
+])
+
+# check for libtls...look to pkg-config if it seems we might not be on OpenBSD
+AM_CONDITIONAL(HAVE_LIBTLS, true)
+PKG_CHECK_MODULES(TLS, [libtls >= 3.1.0],
+    [AC_DEFINE([HAVE_LIBTLS], [1], [libtls installed])],
+    [
+        # probably on OpenBSD or some place with libressl native?
+        AC_CHECK_LIB(tls, tls_client,
+            [
+                AC_DEFINE([HAVE_LIBTLS], [1], [libtls native found])
+                LDFLAGS="$LDFLAGS -ltls"
+            ],
+            [
+                #last chance...are we on msys2?
+                AC_CHECK_LIB(libretls, tls_client,
+		            [
+                        AC_DEFINE([HAVE_LIBTLS], [1], [liblibretls found])
+                        LDFLAGS="$LDFLAGS -llibretls"
+                    ],
+                    [
+                        AM_CONDITIONAL(HAVE_LIBTLS, false)
+                        AC_MSG_WARN([could not find libtls in any form!])
+                    ]
+                )
+            ]
+        )
+    ]
+)
+
+CFLAGS="$CFLAGS ${RDKAFKA_CFLAGS:-} ${TLS_CFLAGS:-} ${BSD_CFLAGS:-}"
+LDFLAGS="$LDFLAGS ${RDKAFKA_LIBS:-} ${TLS_LIBS:-} ${BSD_LIBS:-}"
+LDFLAGS="$LDFLAGS ${SASL2_LIBS:-}"
 
 AC_CHECK_LIB(m, log)
 
