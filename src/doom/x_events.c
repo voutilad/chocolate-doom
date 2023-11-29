@@ -64,8 +64,8 @@
 
 // Local config variables and related Macros. These are bound and set via the
 // Doom config framework calls during startup, but to be safe we set defaults.
-static int telemetry_enabled = 0;
-static int telemetry_mode = FILE_MODE;
+int telemetry_enabled = 0;
+int telemetry_mode = FILE_MODE;
 
 // 12-byte session id string
 #define SESSION_ID_LEN 12
@@ -490,7 +490,9 @@ static int closeFileLog(void)
 // A naive write implementation for our filesystem logger
 int writeFileLog(char* msg, size_t len)
 {
-    return write(log_fd, msg, len);
+    int n = write(log_fd, msg, len);
+    write(log_fd, "\n", 1);
+    return n;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1100,6 +1102,8 @@ static int readNoOp(char *buf, size_t len)
 int X_InitTelemetry(void)
 {
     ASSERT_TELEMETRY_ON(0);
+
+    printf("%s: XXX\n", __func__);
 
     if (logger.type < 1)
     {

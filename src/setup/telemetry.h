@@ -19,4 +19,4 @@
 void ConfigTelemetry(void *widget, void *user_data);
 void BindTelemetryVariables(void);
 
-#endif
+#endif /* ifnden SETUP_TELEMETRY_H */

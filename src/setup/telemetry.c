@@ -12,8 +12,8 @@
 // GNU General Public License for more details.
 //
 
-#include "m_config.h"
 #include "textscreen.h"
+#include "m_config.h"
 
 #include "doom/x_events.h"
 
@@ -21,7 +21,7 @@
 
 #define HELP_URL "https://github.com/voutilad/chocolate-doom/blob/personal/TELEMETRY.md"
 
-static int telemetry_enabled = 1;
+static int telemetry_enabled = 0;
 static int telemetry_mode = FILE_MODE;
 
 static char *udp_host = NULL;
@@ -114,24 +114,26 @@ void ConfigTelemetry(TXT_UNCAST_ARG(widget), void *user_data)
 
 void BindTelemetryVariables(void)
 {
-    M_BindIntVariable("telemetry_enabled", &telemetry_enabled);
-    M_BindIntVariable("telemetry_mode", &telemetry_mode);
-    M_BindStringVariable("telemetry_udp_host", &udp_host);
-    M_BindIntVariable("telemetry_udp_port", &udp_port);
+    M_BindIntVariable("telemetry_enabled",              &telemetry_enabled);
+    M_BindIntVariable("telemetry_mode",                 &telemetry_mode);
+    M_BindStringVariable("telemetry_udp_host",          &udp_host);
+    M_BindIntVariable("telemetry_udp_port",             &udp_port);
+
 #ifdef HAVE_LIBRDKAFKA
-    M_BindStringVariable("telemetry_kafka_topic", &kafka_topic);
-    M_BindStringVariable("telemetry_kafka_brokers", &kafka_brokers);
-    M_BindIntVariable("telemetry_kafka_ssl", &kafka_ssl);
+    M_BindStringVariable("telemetry_kafka_topic",       &kafka_topic);
+    M_BindStringVariable("telemetry_kafka_brokers",     &kafka_brokers);
+    M_BindIntVariable("telemetry_kafka_ssl",            &kafka_ssl);
 #ifdef HAVE_LIBSASL2
-    M_BindStringVariable("telemetry_kafka_username", &kafka_sasl_username);
-    M_BindStringVariable("telemetry_kafka_password", &kafka_sasl_password);
+    M_BindStringVariable("telemetry_kafka_username",    &kafka_sasl_username);
+    M_BindStringVariable("telemetry_kafka_password",    &kafka_sasl_password);
     M_BindIntVariable("telemetry_kafka_sasl_mechanism", &kafka_sasl_mechanism);
 #endif // HAVE_LIBSASL2
 #endif // HAVE_LIBRDKAFKA
+
 #ifdef HAVE_LIBTLS
-    M_BindStringVariable("telemetry_ws_host", &ws_host);
-    M_BindIntVariable("telemetry_ws_port", &ws_port);
-    M_BindStringVariable("telemetry_ws_resource", &ws_resource);
-    M_BindIntVariable("telemetry_ws_tls_enabled", &ws_tls_enabled);
+    M_BindStringVariable("telemetry_ws_host",           &ws_host);
+    M_BindIntVariable("telemetry_ws_port",              &ws_port);
+    M_BindStringVariable("telemetry_ws_resource",       &ws_resource);
+    M_BindIntVariable("telemetry_ws_tls_enabled",       &ws_tls_enabled);
 #endif
 }

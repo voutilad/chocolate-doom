@@ -117,7 +117,7 @@ execute_context_t *NewExecuteContext(void)
     execute_context_t *result;
 
     result = malloc(sizeof(execute_context_t));
-    
+
     result->response_file = TempFile("chocolat.rsp");
     result->stream = M_fopen(result->response_file, "w");
 
@@ -126,7 +126,7 @@ execute_context_t *NewExecuteContext(void)
         fprintf(stderr, "Error opening response file\n");
         exit(-1);
     }
-    
+
     return result;
 }
 
@@ -318,7 +318,7 @@ static int ExecuteCommand(const char *program, const char *arg)
 
     childpid = fork();
 
-    if (childpid == 0) 
+    if (childpid == 0)
     {
         // This is the child.  Execute the command.
 
@@ -337,7 +337,7 @@ static int ExecuteCommand(const char *program, const char *arg)
 
         waitpid(childpid, &result, 0);
 
-        if (WIFEXITED(result) && WEXITSTATUS(result) != 0x80) 
+        if (WIFEXITED(result) && WEXITSTATUS(result) != 0x80)
         {
             return WEXITSTATUS(result);
         }
@@ -354,7 +354,7 @@ int ExecuteDoom(execute_context_t *context)
 {
     char *response_file_arg;
     int result;
-    
+
     fclose(context->stream);
 
     // Build the command line
@@ -380,6 +380,7 @@ static void TestCallback(TXT_UNCAST_ARG(widget), TXT_UNCAST_ARG(data))
     execute_context_t *exec;
     char *main_cfg;
     char *extra_cfg;
+    char *telemetry_cfg;
     txt_window_t *testwindow;
 
     testwindow = TXT_MessageBox("Starting Doom",
@@ -391,8 +392,9 @@ static void TestCallback(TXT_UNCAST_ARG(widget), TXT_UNCAST_ARG(data))
 
     main_cfg = TempFile("tmp.cfg");
     extra_cfg = TempFile("extratmp.cfg");
+    telemetry_cfg = TempFile("telemetrytmp.cfg");
 
-    M_SaveDefaultsAlternate(main_cfg, extra_cfg);
+    M_SaveDefaultsAlternate(main_cfg, extra_cfg, telemetry_cfg);
 
     // Run with the -testcontrols parameter
 
@@ -400,6 +402,7 @@ static void TestCallback(TXT_UNCAST_ARG(widget), TXT_UNCAST_ARG(data))
     AddCmdLineParameter(exec, "-testcontrols");
     AddCmdLineParameter(exec, "-config \"%s\"", main_cfg);
     AddCmdLineParameter(exec, "-extraconfig \"%s\"", extra_cfg);
+    AddCmdLineParameter(exec, "-telemetryconfig \"%s\"", telemetry_cfg);
     ExecuteDoom(exec);
 
     TXT_CloseWindow(testwindow);
@@ -408,17 +411,18 @@ static void TestCallback(TXT_UNCAST_ARG(widget), TXT_UNCAST_ARG(data))
 
     M_remove(main_cfg);
     M_remove(extra_cfg);
+    M_remove(telemetry_cfg);
     free(main_cfg);
     free(extra_cfg);
+    free(telemetry_cfg);
 }
 
 txt_window_action_t *TestConfigAction(void)
 {
     txt_window_action_t *test_action;
-    
+
     test_action = TXT_NewWindowAction('t', "Test");
     TXT_SignalConnect(test_action, "pressed", TestCallback, NULL);
 
     return test_action;
 }
-

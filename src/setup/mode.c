@@ -36,6 +36,7 @@
 #include "mouse.h"
 #include "multiplayer.h"
 #include "sound.h"
+#include "telemetry.h"
 
 #include "mode.h"
 
@@ -50,6 +51,7 @@ typedef struct
     const char *name;
     const char *config_file;
     const char *extra_config_file;
+    const char *telemetry_config_file;
     const char *executable;
 } mission_config_t;
 
@@ -66,6 +68,7 @@ static mission_config_t mission_configs[] =
         "doom",
         "default.cfg",
         PROGRAM_PREFIX "doom.cfg",
+        "telemetry.cfg",
         PROGRAM_PREFIX "doom"
     },
     {
@@ -75,6 +78,7 @@ static mission_config_t mission_configs[] =
         "heretic",
         "heretic.cfg",
         PROGRAM_PREFIX "heretic.cfg",
+        "telemetry.cfg",
         PROGRAM_PREFIX "heretic"
     },
     {
@@ -84,6 +88,7 @@ static mission_config_t mission_configs[] =
         "hexen",
         "hexen.cfg",
         PROGRAM_PREFIX "hexen.cfg",
+        "telemetry.cfg",
         PROGRAM_PREFIX "hexen"
     },
     {
@@ -93,6 +98,7 @@ static mission_config_t mission_configs[] =
         "strife",
         "strife.cfg",
         PROGRAM_PREFIX "strife.cfg",
+        "telemetry.cfg",
         PROGRAM_PREFIX "strife"
     }
 };
@@ -196,6 +202,7 @@ void InitBindings(void)
     BindSoundVariables();
     BindMiscVariables();
     BindMultiplayerVariables();
+    BindTelemetryVariables();
 }
 
 // Set the name of the executable program to run the game:
@@ -221,7 +228,8 @@ static void SetMission(mission_config_t *config)
     gamemission = config->mission;
     SetExecutable(config);
     game_title = config->label;
-    M_SetConfigFilenames(config->config_file, config->extra_config_file);
+    M_SetConfigFilenames(config->config_file, config->extra_config_file,
+                         config->telemetry_config_file);
 }
 
 static mission_config_t *GetMissionForName(const char *name)
@@ -381,4 +389,3 @@ const iwad_t **GetIwads(void)
 {
     return iwads;
 }
-

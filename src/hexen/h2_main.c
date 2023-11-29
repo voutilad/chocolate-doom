@@ -405,7 +405,7 @@ void D_DoomMain(void)
         M_SetConfigDir(NULL);
     }
 
-    M_SetConfigFilenames("hexen.cfg", PROGRAM_PREFIX "hexen.cfg");
+    M_SetConfigFilenames("hexen.cfg", PROGRAM_PREFIX "hexen.cfg", "telemetry.cfg");
     M_LoadDefaults();
 
     D_SetDefaultSavePath();

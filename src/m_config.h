@@ -14,7 +14,7 @@
 //
 // DESCRIPTION:
 //      Configuration file interface.
-//    
+//
 
 
 #ifndef __M_CONFIG__
@@ -24,7 +24,8 @@
 
 void M_LoadDefaults(void);
 void M_SaveDefaults(void);
-void M_SaveDefaultsAlternate(const char *main, const char *extra);
+void M_SaveDefaultsAlternate(const char *main, const char *extra,
+                             const char *telemetry_config);
 void M_SetConfigDir(const char *dir);
 void M_SetMusicPackDir(void);
 void M_BindIntVariable(const char *name, int *variable);
@@ -34,7 +35,8 @@ boolean M_SetVariable(const char *name, const char *value);
 int M_GetIntVariable(const char *name);
 const char *M_GetStringVariable(const char *name);
 float M_GetFloatVariable(const char *name);
-void M_SetConfigFilenames(const char *main_config, const char *extra_config);
+void M_SetConfigFilenames(const char *main_config, const char *extra_config,
+                          const char *telemetry_config);
 char *M_GetSaveGameDir(const char *iwadname);
 char *M_GetAutoloadDir(const char *iwadname);
 

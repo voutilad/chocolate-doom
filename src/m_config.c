@@ -54,6 +54,7 @@ static char *autoload_path = "";
 
 static const char *default_main_config;
 static const char *default_extra_config;
+static const char *default_telemetry_config;
 
 typedef enum
 {
@@ -687,123 +688,6 @@ static default_t	doom_defaults_list[] =
     //
 
     CONFIG_VARIABLE_INT(comport),
-
-    //!
-    // @game doom
-    //
-    // Toggleswitch for telemetry features
-    //
-
-    CONFIG_VARIABLE_INT(telemetry_enabled),
-
-    //!
-    // @game doom
-    //
-    // Modeswitch for telemetry logger
-    //
-
-    CONFIG_VARIABLE_INT(telemetry_mode),
-
-    //!
-    // @game doom
-    //
-    // UDP Host or IP for sending telemetry via network
-    //
-
-    CONFIG_VARIABLE_STRING(telemetry_udp_host),
-
-    //!
-    // @game doom
-    //
-    // UDP Port for sending telemetry via network
-    //
-
-    CONFIG_VARIABLE_INT(telemetry_udp_port),
-
-#ifdef HAVE_LIBRDKAFKA
-    //!
-    // @game doom
-    //
-    // Kafka topic to publish telemetry data to
-    //
-
-    CONFIG_VARIABLE_STRING(telemetry_kafka_topic),
-
-    //!
-    // @game doom
-    //
-    // Comma-separated list of Kafka brokers.
-    // (Example: "host-1:9092,host-2:9092")
-    //
-
-    CONFIG_VARIABLE_STRING(telemetry_kafka_brokers),
-
-    //!
-    // @game doom
-    //
-    // Use TLS with the Kafka API?
-    //
-
-    CONFIG_VARIABLE_INT(telemetry_kafka_ssl),
-
-#ifdef HAVE_LIBSASL2
-    //!
-    // @game doom
-    //
-    // SASL username (Confluent API Key)
-    //
-
-    CONFIG_VARIABLE_STRING(telemetry_kafka_username),
-
-    //!
-    // @game doom
-    //
-    // SASL password (Confluent API Secret)
-    //
-
-    CONFIG_VARIABLE_STRING(telemetry_kafka_password),
-
-    //!
-    // @game doom
-    //
-    // SASL mechanism
-    //
-
-    CONFIG_VARIABLE_INT(telemetry_kafka_sasl_mechanism),
-#endif // HAVE_LIBSASL2
-#endif // HAVE_LIBRDKAFKA
-
-#ifdef HAVE_LIBTLS
-    //!
-    // @game doom
-    //
-    // Hostname or IP address for the WebSocket server
-    //
-    CONFIG_VARIABLE_STRING(telemetry_ws_host),
-
-    //!
-    // @game doom
-    //
-    // TCP port of WebSocket server
-    //
-    CONFIG_VARIABLE_INT(telemetry_ws_port),
-
-    //!
-    // @game doom
-    //
-    // HTTP resource to request on the WebSocket
-    // server during WebSocket upgrade handshake
-    //
-    CONFIG_VARIABLE_STRING(telemetry_ws_resource),
-
-    //!
-    // @game doom
-    //
-    // Toggle for using TLS with the WebSocket
-    // connection.
-    //
-    CONFIG_VARIABLE_INT(telemetry_ws_tls_enabled),
-#endif
 };
 
 static default_collection_t doom_defaults =
@@ -2102,6 +1986,106 @@ static default_collection_t extra_defaults =
     NULL,
 };
 
+//! @begin_config_file telemetry
+static default_t telemetry_defaults_list[] =
+{
+    //!
+    // Toggleswitch for telemetry features
+    //
+
+    CONFIG_VARIABLE_INT(telemetry_enabled),
+
+    //!
+    // Modeswitch for telemetry logger
+    //
+
+    CONFIG_VARIABLE_INT(telemetry_mode),
+
+    //!
+    // UDP Host or IP for sending telemetry via network
+    //
+
+    CONFIG_VARIABLE_STRING(telemetry_udp_host),
+
+    //!
+    // UDP Port for sending telemetry via network
+    //
+
+    CONFIG_VARIABLE_INT(telemetry_udp_port),
+
+#ifdef HAVE_LIBRDKAFKA
+    //!
+    // Kafka topic to publish telemetry data to
+    //
+
+    CONFIG_VARIABLE_STRING(telemetry_kafka_topic),
+
+    //!
+    // Comma-separated list of Kafka brokers.
+    // (Example: "host-1:9092,host-2:9092")
+    //
+
+    CONFIG_VARIABLE_STRING(telemetry_kafka_brokers),
+
+    //!
+    // Use TLS with the Kafka API?
+    //
+
+    CONFIG_VARIABLE_INT(telemetry_kafka_ssl),
+
+#ifdef HAVE_LIBSASL2
+    //!
+    // SASL username (Confluent API Key)
+    //
+
+    CONFIG_VARIABLE_STRING(telemetry_kafka_username),
+
+    //!
+    // SASL password (Confluent API Secret)
+    //
+
+    CONFIG_VARIABLE_STRING(telemetry_kafka_password),
+
+    //!
+    // SASL mechanism
+    //
+
+    CONFIG_VARIABLE_INT(telemetry_kafka_sasl_mechanism),
+#endif // HAVE_LIBSASL2
+#endif // HAVE_LIBRDKAFKA
+
+#ifdef HAVE_LIBTLS
+    //!
+    // Hostname or IP address for the WebSocket server
+    //
+    CONFIG_VARIABLE_STRING(telemetry_ws_host),
+
+    //!
+    // TCP port of WebSocket server
+    //
+    CONFIG_VARIABLE_INT(telemetry_ws_port),
+
+    //!
+    // HTTP resource to request on the WebSocket
+    // server during WebSocket upgrade handshake
+    //
+    CONFIG_VARIABLE_STRING(telemetry_ws_resource),
+
+    //!
+    // Toggle for using TLS with the WebSocket
+    // connection.
+    //
+    CONFIG_VARIABLE_INT(telemetry_ws_tls_enabled),
+#endif
+};
+
+static default_collection_t telemetry_defaults =
+{
+    telemetry_defaults_list,
+    arrlen(telemetry_defaults_list),
+    NULL,
+};
+
 // Search a collection for a variable
 
 static default_t *SearchCollection(default_collection_t *collection, const char *name)
@@ -2407,10 +2391,12 @@ static void LoadDefaultCollection(default_collection_t *collection)
 
 // Set the default filenames to use for configuration files.
 
-void M_SetConfigFilenames(const char *main_config, const char *extra_config)
+void M_SetConfigFilenames(const char *main_config, const char *extra_config,
+                          const char *telemetry_config)
 {
     default_main_config = main_config;
     default_extra_config = extra_config;
+    default_telemetry_config = telemetry_config;
 }
 
 //
@@ -2421,24 +2407,29 @@ void M_SaveDefaults (void)
 {
     SaveDefaultCollection(&doom_defaults);
     SaveDefaultCollection(&extra_defaults);
+    SaveDefaultCollection(&telemetry_defaults);
 }
 
 //
 // Save defaults to alternate filenames
 //
 
-void M_SaveDefaultsAlternate(const char *main, const char *extra)
+void M_SaveDefaultsAlternate(const char *main, const char *extra,
+                             const char *telemetry)
 {
     const char *orig_main;
     const char *orig_extra;
+    const char *orig_telemetry;
 
     // Temporarily change the filenames
 
     orig_main = doom_defaults.filename;
     orig_extra = extra_defaults.filename;
+    orig_telemetry = telemetry_defaults.filename;
 
     doom_defaults.filename = main;
     extra_defaults.filename = extra;
+    telemetry_defaults.filename = telemetry;
 
     M_SaveDefaults();
 
@@ -2446,6 +2437,7 @@ void M_SaveDefaultsAlternate(const char *main, const char *extra)
 
     doom_defaults.filename = orig_main;
     extra_defaults.filename = orig_extra;
+    telemetry_defaults.filename = orig_telemetry;
 }
 
 //
@@ -2505,8 +2497,28 @@ void M_LoadDefaults (void)
             = M_StringJoin(configdir, default_extra_config, NULL);
     }
 
+    //!
+    // @arg <file>
+    //
+    // Load telemetry configuration from the specified file, instead of
+    // the default.
+
+    i = M_CheckParmWithArgs("-telemetryconfig", 1);
+    if (i)
+    {
+        telemetry_defaults.filename = myargv[i+1];
+        printf("        telemetry configuration file: %s\n",
+               telemetry_defaults.filename);
+    }
+    else
+    {
+        telemetry_defaults.filename
+            = M_StringJoin(configdir, default_telemetry_config, NULL);
+    }
+
     LoadDefaultCollection(&doom_defaults);
     LoadDefaultCollection(&extra_defaults);
+    LoadDefaultCollection(&telemetry_defaults);
 }
 
 // Get a configuration file variable by its name
@@ -2522,6 +2534,11 @@ static default_t *GetDefaultForName(const char *name)
     if (result == NULL)
     {
         result = SearchCollection(&extra_defaults, name);
+    }
+
+    if (result == NULL)
+    {
+        result = SearchCollection(&telemetry_defaults, name);
     }
 
     // Not found? Internal error.
