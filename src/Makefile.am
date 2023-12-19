@@ -135,6 +135,9 @@ endif
 
 if HAVE_LIBTLS
 DWS_FILES = dws.c dws.h
+if HAVE_MQTT
+MQTT_FILES = mqtt.c mqtt_pal_dws.c mqtt.h mqtt_dws.h mqtt_pal.h
+endif
 endif
 
 DEHACKED_SOURCE_FILES =                    \
@@ -146,7 +149,8 @@ deh_text.c
 
 # Some games support dehacked patches, some don't:
 
-SOURCE_FILES = $(COMMON_SOURCE_FILES) $(GAME_SOURCE_FILES) $(DWS_FILES)
+SOURCE_FILES = $(COMMON_SOURCE_FILES) $(GAME_SOURCE_FILES) \
+$(DWS_FILES) $(MQTT_FILES)
 SOURCE_FILES_WITH_DEH = $(SOURCE_FILES) $(DEHACKED_SOURCE_FILES)
 
 EXTRA_LIBS =                                               \

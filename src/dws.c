@@ -42,6 +42,8 @@
 
 #include "dws.h"
 
+#define MIN(a,b) (((a)<(b))?(a):(b))
+
 // It's ludicrous to think we'd have a server handshake response larger
 #define HANDSHAKE_BUF_SIZE 1024
 
@@ -52,16 +54,22 @@ static const char server_handshake[] = "HTTP/1.1 101 Switching Protocols";
 
 static const char HANDSHAKE_TEMPLATE[] =
     "GET %s HTTP/1.1\r\n"
-    "Host: %s\r\n"
+    "Host: %s:%d\r\n"
     "Upgrade: websocket\r\n"
-    "Connection: upgrade\r\n"
+    "Connection: Upgrade\r\n"
     "Sec-WebSocket-Key: %s\r\n"
-    "Sec-WebSocket-Protocol: dumb-ws\r\n"
+    "Sec-WebSocket-Protocol: %s\r\n"
     "Sec-WebSocket-Version: 13\r\n\r\n";
 
 static int rng_initialized = 0;
 
 static const char B64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+static ssize_t ws_read(struct websocket *, void *, size_t);
+static ssize_t ws_read_all(struct websocket *, void *, size_t);
+static ssize_t ws_read_txt(struct websocket *, void *, size_t);
+static void ws_shutdown(struct websocket *);
+
 
 static void __attribute__((noreturn))
 crap(int code, const char *fmt, ...)
@@ -80,15 +88,29 @@ crap(int code, const char *fmt, ...)
 static uint32_t
 portable_random(void)
 {
-#ifdef _WIN32
+#if _WIN32 || _WIN64
 	errno_t err;
 	uint32_t r = 0;
 	err = rand_s(&r);
 	if (err != 0)
 		crap(err, "%s: rand_s failed", __func__);
 	return r;
+#elif (__OpenBSD__ || __FreeBSD__ || __NetBSD__ || __APPLE__) \
+	|| (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 36)
+	return arc4random();
 #else
-	return random();
+	static long r = 0;
+	uint32_t ret = 0;
+
+	if (r == 0) {
+		r = random();
+		ret = (uint32_t)(r & 0xFFFFFFFF);
+	} else {
+		r = r >> 32;
+		ret = (uint32_t)r;
+		r = 0;
+	}
+	return ret;
 #endif
 }
 static void
@@ -104,9 +126,9 @@ init_rng(void)
 	len = read(fd, state, sizeof(state));
 	if (len < (ssize_t) sizeof(state))
 		crap(1, "%s: failed to fill state buffer", __func__);
+	close(fd);
 
 	initstate(time(NULL), state, sizeof(state));
-	close(fd);
 #endif
 	rng_initialized = 1;
 }
@@ -125,7 +147,7 @@ choose(unsigned int upper_bound)
  *
  * Since RFC6455 says we don't care about the random 16-byte value used
  * for the key (the server never decodes it), why bother actually writing
- * propery base64 encoding when we can just pick 22 valid base64 characters
+ * a proper base64 encoding when we can just pick 22 valid base64 characters
  * to make our key?
  */
 static void
@@ -163,64 +185,183 @@ dumb_mask(uint8_t mask[4])
 }
 
 /*
- * Safely read as much as we can into a given buffer since it may take
- * multiple read(2)/tls_read(3) calls.
+ * Safely read at most `n` bytes into the given buffer.
  */
 static ssize_t
 ws_read(struct websocket *ws, void *buf, size_t buflen)
 {
-	ssize_t ret = 0;
-	char *_buf = (char*) buf;
+	ssize_t _buflen, sz, len = 0;
+	char *_buf;
 
 	if (buflen > INT_MAX)
 		crap(1, "ws_read: buflen too large");
 
-	if (ws->ctx) {
-		do {
-			ret = tls_read(ws->ctx, _buf, buflen);
-		} while (ret == TLS_WANT_POLLIN);
-	} else {
-		ret = read(ws->s, _buf, buflen);
+	_buf = (char*) buf;
+	_buflen = (ssize_t) buflen;
+
+	while (_buflen > 0) {
+		if (ws->ctx) {
+			sz = tls_read(ws->ctx, _buf, _buflen);
+			if (sz == TLS_WANT_POLLIN || sz == TLS_WANT_POLLOUT) {
+				if (len == 0)
+					return DWS_WANT_POLL;
+				break;
+			} else if (sz == -1)
+				return -1;
+		} else {
+			sz = read(ws->s, _buf, _buflen);
+			if (sz == -1 && errno == EAGAIN) {
+				if (len == 0)
+					return DWS_WANT_POLL;
+				break;
+			}
+			else if (sz == -1) {
+				// TODO: check some common errno's and return
+				// something better.
+				return -1;
+			}
+		}
+
+		_buf += sz;
+		_buflen -= sz;
+		len += sz;
 	}
 
 	// TODO: figure out how we want to handle errors...
 	// win32 spits out a different error than posix systems, btw.
 
-	return ret;
+	return len;
 }
 
 /*
- * Safely write the given buf up to buflen via the socket.
+ * Read at `buflen` bytes into the given buffer, busy polling as needed.
  */
 static ssize_t
-ws_write(struct websocket *ws, void *buf, size_t buflen)
+ws_read_all(struct websocket *ws, void *buf, size_t buflen)
 {
-	ssize_t _buflen, ret, len = 0;
+	ssize_t _buflen, sz, len = 0;
 	char *_buf;
 
 	if (buflen > INT_MAX)
 		crap(1, "%s: buflen too large", __func__);
+	if (buflen == 0)
+		crap(1, "%s: buflen == 0?!", __func__);
+
+	_buf = (char*) buf;
+	_buflen = (ssize_t) buflen;
+
+	while (_buflen > 0) {
+		if (ws->ctx) {
+			sz = tls_read(ws->ctx, _buf, _buflen);
+			if (sz == TLS_WANT_POLLIN || sz == TLS_WANT_POLLOUT)
+				continue;
+			else if (sz == -1)
+				return -1;
+		} else {
+			sz = read(ws->s, _buf, _buflen);
+			if (sz == -1 && errno == EAGAIN)
+				continue;
+			else if (sz == -1)
+				return -1;
+		}
+
+		_buf += sz;
+		_buflen -= sz;
+		len += sz;
+	}
+
+	// TODO: figure out how we want to handle errors...
+	// win32 spits out a different error than posix systems, btw.
+
+	return len;
+}
+
+/*
+ * Read up to buflen bytes into buf, looking for `\r\n` terminators.
+ */
+static ssize_t
+ws_read_txt(struct websocket *ws, void *buf, size_t buflen)
+{
+	ssize_t _buflen, sz, len = 0;
+	char *_buf, *end = NULL;
+
+	if (buflen > INT_MAX)
+		crap(1, "ws_read: buflen too large");
+
+	_buf = (char*) buf;
+	_buflen = (ssize_t) buflen;
+
+	while (_buflen > 0) {
+		if (ws->ctx) {
+			sz = tls_read(ws->ctx, _buf, _buflen);
+			if (sz == TLS_WANT_POLLIN || sz == TLS_WANT_POLLOUT)
+				continue;
+			else if (sz == -1)
+				return -1;
+		} else {
+			sz = read(ws->s, _buf, _buflen);
+			if (sz == -1 && errno == EAGAIN)
+				continue;
+			else if (sz == -1)
+				return -1;
+		}
+
+		_buf += sz;
+		_buflen -= sz;
+		len += sz;
+
+		if (len >= 4) {
+			// Look for terminator pattern.
+			end = _buf - 4;
+			if (memcmp(end, "\r\n\r\n", 4) == 0)
+				break;
+		}
+	}
+
+	// TODO: figure out how we want to handle errors...
+	// win32 spits out a different error than posix systems, btw.
+
+	return len;
+}
+
+/*
+ * Safely write the given buf up to buflen via the socket.
+ *
+ * Will write the entirety of the given buffer. Does not currently use any
+ * poll like functionality, so will busy poll the socket!
+ */
+static ssize_t
+ws_write(struct websocket *ws, const void *buf, size_t buflen)
+{
+	ssize_t _buflen, sz, len = 0;
+	char *_buf;
+
+	if (buflen > INT_MAX)
+		return -1;
+	if (buflen == 0)
+		return 0;
 
 	_buf = (char *)buf;
 	_buflen = (ssize_t) buflen;
 
-	if (ws->ctx) {
-		while (_buflen > 0) {
-			ret = tls_write(ws->ctx, _buf, (size_t) _buflen);
-			if (ret == TLS_WANT_POLLOUT)
+	while (_buflen > 0) {
+		if (ws->ctx) {
+			sz = tls_write(ws->ctx, _buf, (size_t) _buflen);
+			if (sz == TLS_WANT_POLLOUT || sz == TLS_WANT_POLLIN)
 				continue;
-			if (ret < 0)
-				crap(1, "tls_write: %s", tls_error(ws->ctx));
-
-			_buf += ret;
-			_buflen -= ret;
-			len += ret;
+			else if (sz == -1)
+				return -1;
+		} else {
+			sz = write(ws->s, _buf, (size_t) _buflen);
+			if (sz == -1 && errno == EAGAIN)
+				continue;
+			else if (sz == -1)
+				return -1;
 		}
-	} else {
-		// XXX: for now, we assume synchronous writes
-		len = write(ws->s, _buf, (size_t) _buflen);
-		if (len < 0)
-			crap(1, "socket write error");
+
+		_buf += sz;
+		_buflen -= sz;
+		len += sz;
 	}
 
 	return len;
@@ -251,32 +392,30 @@ ws_write(struct websocket *ws, void *buf, size_t buflen)
  *    +---------------------------------------------------------------+
  */
 static ssize_t
-init_frame(uint8_t *frame, enum FRAME_OPCODE type, uint8_t mask[4], size_t len)
+init_frame(uint8_t *frame, enum ws_opcode opcode, uint8_t mask[4], size_t len)
 {
 	int idx = 0;
-	uint16_t payload_length;
+	uint16_t payload;
 
 	// Just a quick safety check: we don't do large payloads
 	if (len > (1 << 24))
 		return -1;
 
-	frame[0] = (uint8_t) (0x80 + type);
+	frame[0] = (uint8_t) (0x80 + opcode);
 	if (len < 126) {
 		// The trivial "7 bit" payload case
 		frame[1] = 0x80 + (uint8_t) len;
 		idx = 1;
-	} else if (len >= 126 && len < 65536) {
+	} else {
 		// The "7+16 bits" payload len case
 		frame[1] = 0x80 + 126;
 
 		// Payload length in network byte order
-		payload_length = htons(len);
-		frame[2] = payload_length & 0xFF;
-		frame[3] = payload_length >> 8;
+		payload = htons(len);
+		frame[2] = payload & 0xFF;
+		frame[3] = payload >> 8;
 		idx = 3;
-	} else
-            return -1;
-
+	}
 	// And that's it, because 2^24 bytes should be enough for anyone!
 
 	// Gotta send a copy of the mask
@@ -325,7 +464,7 @@ dump_frame(uint8_t *frame, size_t len)
  *
  */
 static ssize_t
-dumb_frame(uint8_t *frame, uint8_t *data, size_t len)
+dumb_frame(uint8_t *frame, const uint8_t *data, size_t len)
 {
 	int i;
 	ssize_t header_len;
@@ -333,7 +472,7 @@ dumb_frame(uint8_t *frame, uint8_t *data, size_t len)
 
 	// Just a quick safety check: we don't do large payloads
 	if (len > (1 << 24))
-		return -1;
+		return DWS_ERR_TOO_LARGE;
 
 	// Pretend we're in Eyes Wide Shut
 	dumb_mask(mask);
@@ -363,34 +502,41 @@ dumb_frame(uint8_t *frame, uint8_t *data, size_t len)
  *
  * Returns:
  *  0 on success,
- * -1 if it failed to generate the handshake buffer,
- * -2 if it received an invalid handshake response,
+ *  DWS_ERR_HANDSHAKE_BUF if it failed to generate the handshake buffer,
+ *  DWS_ERR_HANDSHAKE_ERR if it received an invalid handshake response,
  *  fatal error otherwise.
  */
 int
-dumb_handshake(struct websocket *ws, char *host, char *path)
+dumb_handshake(struct websocket *ws, const char *path, const char *proto)
 {
 	int len, ret = 0;
 	char key[25], buf[HANDSHAKE_BUF_SIZE];
+	ssize_t sz = 0;
 
 	memset(key, 0, sizeof(key));
 	dumb_key(key);
 
 	len = snprintf(buf, sizeof(buf), HANDSHAKE_TEMPLATE,
-	    path, host, key);
+				   path, ws->host, ws->port, key, proto);
 	if (len < 1)
-		return -1;
+		return DWS_ERR_HANDSHAKE_BUF;
 
-	ws_write(ws, buf, (size_t) len);
+	// Send our upgrade request.
+	sz = ws_write(ws, buf, len);
+	if (sz != len)
+		crap(1, "dumb_handshake: ws_write");
 
 	memset(buf, 0, sizeof(buf));
-	ws_read(ws, buf, sizeof(buf));
+	len = ws_read_txt(ws, buf, sizeof(buf));
+	if (len == -1)
+		return DWS_ERR_HANDSHAKE_BUF;
 
 	/* XXX: If we gave a crap, we'd validate the returned key per the
 	 * requirements of RFC6455 sec. 4.1, but we don't.
 	 */
-	if (memcmp(server_handshake, buf, sizeof(server_handshake) - 1))
-		ret = -2;
+	if (memcmp(server_handshake, buf, sizeof(server_handshake) - 1)) {
+        ret = DWS_ERR_HANDSHAKE_RES;
+    }
 
 	return ret;
 }
@@ -408,14 +554,15 @@ dumb_handshake(struct websocket *ws, char *host, char *path)
  *
  * Returns:
  *  0 on success,
- * -1 if it failed to create a socket,
- * -2 if it failed to resolve host (check h_errno),
- * -3 if it failed to connect(2).
+ *  DWS_ERR_CONN_CREATE if it failed to create a socket,
+ *  DWS_ERR_CONN_RESOLVE if it failed to resolve host (check h_errno),
+ *  DWS_ERR_CONN_CONNECT if it failed to connect(2).
  */
 int
-dumb_connect(struct websocket *ws, char *host, char *port)
+dumb_connect(struct websocket *ws, const char *host, uint16_t port)
 {
 	int s;
+	char port_buf[8];
 	struct addrinfo hints, *res;
 
 #ifdef _WIN32
@@ -428,7 +575,7 @@ dumb_connect(struct websocket *ws, char *host, char *port)
 
 	s = socket(AF_INET, SOCK_STREAM, 0);
 	if (s < 0)
-		return -1;
+		return DWS_ERR_CONN_CREATE;
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET;
@@ -436,14 +583,22 @@ dumb_connect(struct websocket *ws, char *host, char *port)
 	hints.ai_protocol = 0;
 	hints.ai_flags = AI_CANONNAME;
 
-
-	if (getaddrinfo(host, port, &hints, &res))
-		return -2;
+	memset(port_buf, 0, sizeof(port_buf));
+	snprintf(port_buf, sizeof(port_buf), "%d", port);
+	if (getaddrinfo(host, port_buf, &hints, &res))
+		return DWS_ERR_CONN_RESOLVE;
 
 	// XXX: for now we're lazy and only try the first addrinfo
 	if (connect(s, res->ai_addr, res->ai_addrlen))
-		return -3;
+		return DWS_ERR_CONN_CONNECT;
 
+	// Set to non blocking
+	if (fcntl(s, F_SETFL, O_NONBLOCK) == -1)
+		return DWS_ERR_CONN_CONNECT;
+
+	// Store some state
+	ws->port = port;
+	ws->host = strdup(host);
 	ws->s = s;
 	ws->ctx = NULL;
 	memset(&ws->addr, 0, sizeof(ws->addr));
@@ -466,7 +621,8 @@ dumb_connect(struct websocket *ws, char *host, char *port)
  *  insecure: set to non-zero to disable cert verification
  */
 int
-dumb_connect_tls(struct websocket *ws, char *host, char *port, int insecure)
+dumb_connect_tls(struct websocket *ws, const char *host, uint16_t port,
+				 int insecure)
 {
 	int ret;
 	ret = dumb_connect(ws, host, port);
@@ -506,32 +662,25 @@ dumb_connect_tls(struct websocket *ws, char *host, char *port, int insecure)
  *
  * Returns:
  *  the amount of bytes sent,
- * -1 on failure to calloc(3) a buffer for the dumb websocket frame,
- *  or whatever send(2) might return on error (zero or a negative value)
+ *  DWS_ERR_MALLOC on failure to calloc(3) a buffer for the dumb websocket
+ *  frame, or whatever ws_write might return on error (zero or a negative value)
  */
 ssize_t
-dumb_send(struct websocket *ws, void *payload, size_t len)
+dumb_send(struct websocket *ws, const void *payload, size_t len)
 {
 	uint8_t *frame;
-	uint8_t mask[4];
 	ssize_t frame_len, n;
 
 	// We need payload size + 14 bytes minimum, but pad a little extra
-	frame = calloc(sizeof(uint8_t), len + 16);
+	frame = calloc(1, len + 16);
 	if (frame == NULL)
-		return -1;
-
-	memset(mask, 0, sizeof(mask));
-	dumb_mask(mask);
+		return DWS_ERR_MALLOC;
 
 	frame_len = dumb_frame(frame, payload, len);
 	if (frame_len < 0)
 		crap(1, "%s: invalid frame payload length", __func__);
 
-	if (ws->ctx)
-		n = tls_write(ws->ctx, frame, (size_t) frame_len);
-	else
-		n = write(ws->s, frame, (size_t) frame_len);
+	n = ws_write(ws, frame, (size_t) frame_len);
 
 	free(frame);
 	return n;
@@ -553,50 +702,70 @@ dumb_send(struct websocket *ws, void *payload, size_t len)
  *
  * Returns:
  *  the number of bytes received in the payload (not including frame headers),
- * -1 on failure to calloc(3) memory for a receive buffer,
- * -2 on failure to read(2) data,
- * -3 if the frame was sent fractured (unsupported right now!)
+ *  DWS_ERR_READ on failure to read(2) data, DWS_WANT_POLL or DWS_SHUTDOWN.
  */
 ssize_t
-dumb_recv(struct websocket *ws, void *out, size_t len)
+dumb_recv(struct websocket *ws, void *buf, size_t buflen)
 {
-	uint8_t *frame;
+	uint8_t frame[4] = { 0 };
 	ssize_t payload_len;
-	ssize_t offset = 0, n = 0;
+	ssize_t n = 0;
 
-	frame = calloc(sizeof(uint8_t), len + FRAME_MAX_HEADER_SIZE + 1);
-	if (frame == NULL)
-		return -1;
-
-	n = ws_read(ws, frame, len + FRAME_MAX_HEADER_SIZE + 1);
-	if (n < 1) {
-		free(frame);
-		return -2;
+	// Read first 2 bytes to figure out the framing details.
+	n = ws_read(ws, frame, 2);
+	if (n < 0) {
+		if (n == -1)
+			return DWS_ERR_READ;
+		return n;
 	}
 
 	// Now to validate the frame...
 	if (!(frame[0] & 0x80)) {
-		// XXX: We don't currently fragmentation
-		free(frame);
-		return -3;
+		// XXX: We don't currently support fragmentation
+		crap(1, "%s: fragmentation unsupported", __func__);
 	}
 
-	payload_len = frame[1] & 0x7F;
-	if (payload_len < 126) {
-		offset = 2;
-	} else if (payload_len == 126) {
-		// arrives in network byte order
+	switch (frame[0] & 0x0F) {
+	case TEXT:
+		crap(1, "%s: unsupported TEXT frame!", __func__);
+		// unreached
+	case CLOSE:
+		// Unexpected, but possible if the server hates us apparently!
+		ws_shutdown(ws);
+		return DWS_SHUTDOWN;
+	case PING:
+		// Also unexpected! WTF.
+		return DWS_WANT_PONG;
+	case PONG:
+		// This...should not happen, but process the message.
+		// Fallthrough
+	case BINARY:
+		// Fallthrough
+	default:
+		// Ok. We have something we *think* we can work with!
+		payload_len = frame[1] & 0x7F;
+	}
+
+	if (payload_len == 126) {
+		// Need the next two bytes to get the actual payload size, which
+		// arrives in network byte order.
+		n = ws_read_all(ws, frame + 2, 2);
+		if (n < 2)
+			return DWS_ERR_READ;
 		payload_len = frame[2] << 8;
 		payload_len += frame[3];
-		offset = 4;
-	} else {
-		free(frame);
+	} else if (payload_len > 126)
 		crap(1, "%s: unsupported payload size", __func__);
-	}
 
-	memcpy(out, frame + offset, (size_t) payload_len);
+	// We can now read the the payload, if there is one.
+	payload_len = MIN((size_t)payload_len, buflen);
+	if (payload_len == 0)
+		return 0;
 
-	free(frame);
+	n = ws_read_all(ws, buf, (size_t)payload_len);
+	if (n < payload_len)
+		return DWS_ERR_READ;
+
 	return payload_len;
 }
 
@@ -611,16 +780,16 @@ dumb_recv(struct websocket *ws, void *out, size_t len)
  *
  * Returns:
  *  0 on success,
- * -1 on failure during write(2),
- * -2 on failure to receive(2) the response,
- * -3 on the response being invalid (i.e. not a PONG)
+ *  DWS_ERR_WRITE on failure during write(2),
+ *  DWS_ERR_READ on failure to receive(2) the response,
+ *  DWS_ERR_INVALID on the response being invalid (i.e. not a PONG)
  */
 int
 dumb_ping(struct websocket *ws)
 {
-	ssize_t len;
+	ssize_t len, payload_len;
 	uint8_t mask[4];
-	uint8_t frame[64];
+	uint8_t frame[128];
 
 	memset(frame, 0, sizeof(frame));
 	dumb_mask(mask);
@@ -629,20 +798,30 @@ dumb_ping(struct websocket *ws)
 
 	len = ws_write(ws, frame, (size_t) len);
 	if (len < 1)
-		return -1;
+		return DWS_ERR_WRITE;
 
 	memset(frame, 0, sizeof(frame));
 
-	len = ws_read(ws, frame, sizeof(frame));
-	if (len < 1)
-		return -2;
+	// Read first 2 bytes.
+	len = ws_read_all(ws, frame, 2);
+	if (len < 0)
+		return DWS_ERR_READ;
 
-#ifdef DEBUG
-	dump_frame(frame, len);
-#endif
-
+	// We should have a PONG reply.
 	if (frame[0] != (0x80 + PONG))
-		return -3;
+		return DWS_ERR_INVALID;
+
+	payload_len = frame[1] & 0x7F;
+	if (payload_len >= 126)
+		crap(1, "dumb_ping: unsupported pong payload size > 125");
+
+	// Dump the rest of the data on the floor.
+	if (payload_len > 0) {
+		len = ws_read_all(ws, frame + 2,
+		    MIN((size_t)payload_len, sizeof(frame) - 2));
+		if (len < 1)
+			return DWS_ERR_INVALID;
+	}
 
 	return 0;
 }
@@ -652,6 +831,25 @@ dumb_ping(struct websocket *ws)
 #else
 #define HOW SHUT_RDWR
 #endif
+
+static void
+ws_shutdown(struct websocket *ws)
+{
+	// Now close/shutdown our socket.
+	if (ws->ctx)
+		tls_close(ws->ctx);
+
+	// Don't care if shutdown fails. Other side may have closed some things first.
+	shutdown(ws->s, HOW);
+
+	ws->ctx = NULL; // XXX does this leak anything?
+	ws->s = -1;
+
+	// Not sure if it make sense to "free" things here or not.
+	free(ws->host);
+	ws->host = NULL;
+	ws->port = 0;
+}
 
 /*
  * dumb_close
@@ -668,39 +866,52 @@ dumb_ping(struct websocket *ws)
  *
  * Returns:
  *  0 on success,
- * -1 on failure to send(2) the close frame,
- * -2 on failure to read(2) a response,
- * -3 on a response being invalid (i.e. not a CLOSE),
- * -4 on a failure to shutdown(2) the underlying socket
+ *  DWS_ERR_WRITE on failure to send(2) the close frame,
+ *  DWS_ERR_READ on failure to read(2) a response,
+ *  DWS_ERR_INVALID on a response being invalid (i.e. not a CLOSE),
  */
 int
 dumb_close(struct websocket *ws)
 {
-	ssize_t frame_len, len;
+	ssize_t len, payload_len;
 	uint8_t mask[4];
 	uint8_t frame[128];
 
 	memset(frame, 0, sizeof(frame));
 	dumb_mask(mask);
 
-	frame_len = init_frame(frame, CLOSE, mask, 0);
+	len = init_frame(frame, CLOSE, mask, 0);
 
-	len = ws_write(ws, frame, (size_t) frame_len);
-	if (len < frame_len)
-		return -1;
+	len = ws_write(ws, frame, (size_t) len);
+	if (len < 1)
+		return DWS_ERR_WRITE;
 
 	memset(frame, 0, sizeof(frame));
 
 	// A valid RFC6455 websocket server MUST send a Close frame in response
-	len = ws_read(ws, frame, sizeof(frame));
-	if (len < 1)
-		return -3;
+	// Read first 2 bytes.
+	len = ws_read_all(ws, frame, 2);
+	if (len != 2)
+		return DWS_ERR_READ;
 
-	if (ws->ctx)
-		tls_close(ws->ctx);
+	// If we don't have a CLOSE frame...someone screwed up before calling
+	// dumb_close and there's still unread data!
+	if (frame[0] != (0x80 + CLOSE))
+		return DWS_ERR_INVALID;
 
-	if (shutdown(ws->s, HOW))
-		return -4;
+	payload_len = frame[1] & 0x7F;
+	if (payload_len > 126)
+		crap(1, "dumb_close: unsupported close payload size > 125");
+
+	// Dump the rest of the data on the floor.
+	if (payload_len > 0) {
+		len = ws_read_all(ws, frame + 2,
+		    MIN((size_t)payload_len, sizeof(frame) - 2));
+		if (len < 1)
+			return DWS_ERR_READ;
+	}
+
+	ws_shutdown(ws);
 
 	return 0;
 }

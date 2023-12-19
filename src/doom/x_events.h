@@ -31,6 +31,7 @@
 #define UDP_MODE        2
 #define KAFKA_MODE      3
 #define WEBSOCKET_MODE  4
+#define MQTT_MODE       5
 
 // SASL Mechanisms
 #define SASL_PLAIN      1

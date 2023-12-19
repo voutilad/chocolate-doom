@@ -47,6 +47,9 @@
 #ifdef HAVE_LIBTLS
 #include <tls.h>
 #include "dws.h"
+#ifdef HAVE_MQTT
+#include "mqtt.h"
+#endif /* HAVE_MQTT */
 #endif /* HAVE_LIBTLS */
 
 #include "cJSON.h"
@@ -90,10 +93,15 @@ static int kafka_sasl_mechanism = 0;
 
 #ifdef HAVE_LIBTLS
 static char *ws_host = "localhost";
-static int ws_port = 8000;
+static uint16_t ws_port = 8000;
 static char *ws_resource = "/";
 static int ws_tls_enabled = 0;
 static int ws_kv_mode = 1;
+#ifdef HAVE_MQTT
+static uint8_t mqtt_send[4096];
+static uint8_t mqtt_recv[4096];
+static char *mqtt_topic_p = "doom/%s/%s"; // doom/[session]/[type]
+#endif /* HAVE_MQTT */
 #endif /* HAVE_LIBTLS */
 
 #define ASSERT_TELEMETRY_ON(...) if (!telemetry_enabled) return __VA_ARGS__
@@ -124,7 +132,10 @@ static UDPpacket *packet = NULL;
 
 #ifdef HAVE_LIBTLS
 static struct websocket ws;
-#endif
+#ifdef HAVE_MQTT
+static struct mqtt_client client;
+#endif /* HAVE_MQTT */
+#endif /* HAVE_LIBTLS */
 
 #ifdef HAVE_LIBRDKAFKA
 static rd_kafka_t *kafka_producer = NULL;
@@ -254,7 +265,7 @@ static void init_session_id(void)
 
     // This is a bit YOLO but...whatever
     for (int i=0; i < cnt && i < SESSION_ID_LEN; i++) {
-        snprintf(&session_id[i * 2], 3, "%02x", (unsigned char) buf[i]);
+        M_snprintf(&session_id[i * 2], 3, "%02x", (unsigned char) buf[i]);
     }
 }
 
@@ -959,22 +970,16 @@ int readKafkaLog(char *buf, size_t len)
 int initWebsocketPublisher(void)
 {
     int ret;
-    char port[6];
 
     printf("X_InitTelemetry: websocket mode enabled\n");
 
     memset(&ws, 0, sizeof(struct websocket));
-    memset(port, 0, sizeof(port));
 
-    ret = snprintf(port, sizeof(port), "%d", ws_port);
-    if (ret < 1)
-        I_Error("%s: bad port value: %d", __func__, ws_port);
-
-    printf("%s: connecting to %s:%s\n", __func__, ws_host, port);
+    printf("%s: connecting to %s:%d\n", __func__, ws_host, ws_port);
     if (ws_tls_enabled)
-        ret = dumb_connect_tls(&ws, ws_host, port, 1);
+        ret = dumb_connect_tls(&ws, ws_host, ws_port, 1);
     else
-        ret = dumb_connect(&ws, ws_host, port);
+        ret = dumb_connect(&ws, ws_host, ws_port);
 
     if (ret)
         I_Error("websocket connection failure: %d", ret);
@@ -1066,7 +1071,86 @@ int writeWebsocketLog(char *msg, size_t len)
 
     return sent;
 }
-#else
+
+#ifdef HAVE_MQTT
+void mqtt_callback(void **unused, struct mqtt_response_publish *published)
+{
+    // TODO: just be noisy for now.
+    char buf[128];
+    memset(buf, 0, sizeof(buf));
+    memcpy(buf, published->topic_name, published->topic_name_size);
+    printf("%s: published to %s\n", __func__, buf);
+}
+
+int initMqttPublisher(void)
+{
+    int ret;
+    enum MQTTErrors mqtt_ret;
+    mqtt_pal_socket_handle h;
+
+    // We depend on the Websocket layer, so initialize that first.
+    ret = initWebsocketPublisher();
+    if (ret)
+        return ret;
+
+    h = &ws;
+    mqtt_ret = mqtt_init(&client, h, mqtt_send, sizeof(mqtt_send), mqtt_recv,
+                         sizeof(mqtt_recv), mqtt_callback);
+    if (mqtt_ret != MQTT_OK)
+        I_Error("mqtt_init: %s", mqtt_error_str(client.error));
+
+    mqtt_ret = mqtt_connect(&client, NULL, NULL, NULL, 0, NULL, NULL,
+                            MQTT_CONNECT_CLEAN_SESSION, 30);
+    if (mqtt_ret != MQTT_OK)
+        I_Error("mqtt_connect: %s", mqtt_error_str(client.error));
+
+    // TODO: send initialization message?
+
+    // XXX TODO: we need to register a ticker
+
+    return 0;
+}
+
+int closeMqttPublisher(void)
+{
+    if (mqtt_disconnect(&client) != MQTT_OK)
+        I_Error("mqtt_disconnect");
+    memset(&client, 0, sizeof(client));
+
+    // Make sure we shutdown our Websocket, too.
+    return closeWebsocketPublisher();
+}
+
+int writeMqttLog(char *msg, size_t len)
+{
+    // XXX SESSION_ID_CHAR_LEN is 25ish.
+    static char topic[64] = { 0 };
+
+    M_snprintf(topic, sizeof(topic), mqtt_topic_p, session_id, "data");
+
+    return 1;
+}
+#else /* HAVE_MQTT */
+int initMqttPublisher(void)
+{
+    printf("X_InitTelemetry: mqtt mode enabled, but not compiled in!\n");
+    telemetry_enabled = 0;
+
+    return 0;
+}
+
+int closeMqttPublisher(void)
+{
+    return 0;
+}
+
+int writeMqttLog(char *msg, size_t len)
+{
+    return 1;
+}
+#endif HAVE_MQTT
+
+#else /* HAVE_LIBTLS */
 
 int initWebsocketPublisher(void)
 {
@@ -1086,7 +1170,7 @@ int writeWebsocketLog(char *msg, size_t len)
     return 1;
 }
 
-#endif
+#endif /* HAVE_LIBTLS */
 
 // Our no-op reader for telemetry systems that don't give feedback.
 static int readNoOp(char *buf, size_t len)
@@ -1137,6 +1221,12 @@ int X_InitTelemetry(void)
                 logger.write = writeWebsocketLog;
                 logger.read = readNoOp;
                 break;
+            case MQTT_MODE:
+                logger.type = MQTT_MODE;
+                logger.init = initMqttPublisher;
+                logger.close = closeMqttPublisher;
+                logger.write = writeMqttLog;
+                logger.read = readNoOp; // XXX TODO
             default:
                 I_Error("X_InitTelemetry: Unsupported telemetry mode (%d)", telemetry_mode);
         }

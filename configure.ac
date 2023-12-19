@@ -193,24 +193,37 @@ AS_IF([test "x$with_librdkafka" != xno], [
 
 # check for libtls...look to pkg-config if it seems we might not be on OpenBSD
 AM_CONDITIONAL(HAVE_LIBTLS, true)
+AM_CONDITIONAL(HAVE_MQTT, true)
 PKG_CHECK_MODULES(TLS, [libtls >= 3.1.0],
-    [AC_DEFINE([HAVE_LIBTLS], [1], [libtls installed])],
+    [
+        AC_DEFINE([HAVE_LIBTLS], [1], [libtls installed])
+        AC_DEFINE([HAVE_MQTT], [1], [mqtt enabled])
+        CFLAGS="$CFLAGS -DMQTT_USE_CUSTOM_SOCKET_HANDLE"
+        CFLAGS="$CFLAGS -DMQTTC_PAL_FILE=mqtt_dws.h"
+    ],
     [
         # probably on OpenBSD or some place with libressl native?
         AC_CHECK_LIB(tls, tls_client,
             [
                 AC_DEFINE([HAVE_LIBTLS], [1], [libtls native found])
+                AC_DEFINE([HAVE_MQTT], [1], [mqtt enabled])
+                CFLAGS="$CFLAGS -DMQTT_USE_CUSTOM_SOCKET_HANDLE"
+                CFLAGS="$CFLAGS -DMQTTC_PAL_FILE=mqtt_dws.h"
                 LDFLAGS="$LDFLAGS -ltls"
             ],
             [
                 #last chance...are we on msys2?
                 AC_CHECK_LIB(libretls, tls_client,
-		            [
+		    [
                         AC_DEFINE([HAVE_LIBTLS], [1], [liblibretls found])
+                        AC_DEFINE([HAVE_MQTT], [1], [mqtt enabled])
                         LDFLAGS="$LDFLAGS -llibretls"
+                        CFLAGS="$CFLAGS -DMQTT_USE_CUSTOM_SOCKET_HANDLE"
+                        CFLAGS="$CFLAGS -DMQTTC_PAL_FILE=mqtt_dws.h"
                     ],
                     [
                         AM_CONDITIONAL(HAVE_LIBTLS, false)
+                        AM_CONDITIONAL(HAVE_MQTT, false)
                         AC_MSG_WARN([could not find libtls in any form!])
                     ]
                 )

@@ -40,10 +40,13 @@ static int kafka_sasl_mechanism = SASL_PLAIN;
 
 #ifdef HAVE_LIBTLS
 static char *ws_host = NULL;
-static int ws_port = 8000;
+static uint16_t ws_port = 8000;
 static char *ws_resource = NULL;
 static int ws_tls_enabled = 1;
-#endif
+#ifdef HAVE_MQTT
+// TODO: do we need a param here?
+#endif /* HAVE_MQTT */
+#endif /* HAVE_LIBTLS */
 
 void ConfigTelemetry(TXT_UNCAST_ARG(widget), void *user_data)
 {
@@ -63,6 +66,12 @@ void ConfigTelemetry(TXT_UNCAST_ARG(widget), void *user_data)
 #endif
 #ifdef HAVE_LIBTLS
                    TXT_NewRadioButton("WebSockets", &telemetry_mode, WEBSOCKET_MODE),
+#ifdef HAVE_MQTT
+                   TXT_NewRadioButton("MQTTv3 over WebSockets", &telemetry_mode,
+                                      MQTT_MODE),
+                   TXT_NewSeparator("MQTT"),
+                   TXT_NewHorizBox(TXT_NewLabel("TBD"), NULL),
+#endif /* HAVE_MQTT */
                    TXT_NewSeparator("WebSockets"),
                    TXT_NewHorizBox(TXT_NewLabel(" Host/IP: "),
                                    TXT_NewInputBox(&ws_host, 60),
@@ -75,7 +84,7 @@ void ConfigTelemetry(TXT_UNCAST_ARG(widget), void *user_data)
                                    NULL),
                    TXT_NewHorizBox(TXT_NewCheckBox("Uses TLS?", &ws_tls_enabled),
                                    NULL),
-#endif
+// UDP
                    TXT_NewSeparator("UDP (IPv4 Only)"),
                    TXT_NewHorizBox(TXT_NewLabel("Host/IP:  "),
                                    TXT_NewInputBox(&udp_host, 50),
@@ -83,6 +92,7 @@ void ConfigTelemetry(TXT_UNCAST_ARG(widget), void *user_data)
                    TXT_NewHorizBox(TXT_NewLabel("   Port:  "),
                                    TXT_NewIntInputBox(&udp_port, 6),
                                    NULL),
+#endif /* HAVE_LIBTLS */
 #ifdef HAVE_LIBRDKAFKA
                    TXT_NewSeparator("Kafka"),
                    TXT_NewHorizBox(TXT_NewLabel("    Topic:  "),
