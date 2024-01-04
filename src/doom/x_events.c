@@ -1219,6 +1219,7 @@ int X_InitTelemetry(void)
                 logger.write = writeMqttLog;
                 logger.read = NULL;
                 logger.poll = NULL;
+                break;
             default:
                 I_Error("X_InitTelemetry: Unsupported telemetry mode (%d)", telemetry_mode);
         }
