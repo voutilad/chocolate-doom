@@ -93,7 +93,7 @@ static int kafka_sasl_mechanism = 0;
 
 #ifdef HAVE_LIBTLS
 static char *ws_host = "localhost";
-static uint16_t ws_port = 8000;
+static int ws_port = 8000;
 static char *ws_resource = "/";
 static int ws_tls_enabled = 0;
 static int ws_kv_mode = 1;
@@ -970,16 +970,20 @@ int readKafkaLog(char *buf, size_t len)
 int initWebsocketPublisher(void)
 {
     int ret;
+    uint16_t port;
 
     printf("X_InitTelemetry: websocket mode enabled\n");
 
-    memset(&ws, 0, sizeof(struct websocket));
+    if (ws_port < 0 || ws_port > 0xffff)
+        I_Error("invalid websocket port: %d", ws_port);
+    port = (uint16_t)ws_port;
 
-    printf("%s: connecting to %s:%d\n", __func__, ws_host, ws_port);
+    printf("%s: connecting to %s:%d\n", __func__, ws_host, port);
+    memset(&ws, 0, sizeof(struct websocket));
     if (ws_tls_enabled)
-        ret = dumb_connect_tls(&ws, ws_host, ws_port, 1);
+        ret = dumb_connect_tls(&ws, ws_host, port, 1);
     else
-        ret = dumb_connect(&ws, ws_host, ws_port);
+        ret = dumb_connect(&ws, ws_host, port);
 
     if (ret)
         I_Error("websocket connection failure: %d", ret);
