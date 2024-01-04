@@ -1013,17 +1013,11 @@ int writeWebsocketLog(const char *msg, size_t len)
 {
     ssize_t sent, idx = 0;
     uint16_t sz_key = 0, sz_json = 0;
-    char *p = msg;
-
-    static int fd = -1;
-
-    if (fd < 0) {
-        fd = open("/Users/dv/doom.csv", O_RDWR | O_CREAT | O_TRUNC);
-    }
+    const char *p = msg;
 
     // XXX for now we keep is simple and preallocate a buffer on the stack
     //     that can handle store our encoded k/v pair (if using ws_kv_mode).
-    unsigned char buf[2 + SESSION_ID_CHAR_LEN + 2 + JSON_BUFFER_LEN];
+    char buf[2 + SESSION_ID_CHAR_LEN + 2 + JSON_BUFFER_LEN];
 
     if (ws_kv_mode) {
         if (len > 65535)
@@ -1069,9 +1063,6 @@ int writeWebsocketLog(const char *msg, size_t len)
     sent = dumb_send(&ws, p, len);
     if (sent < 1)
         I_Error("%s: websocket failed send (%zd)", __func__, sent);
-
-    dprintf(fd, "%zu,%u\n", len, counter);
-    //  flush(fd);
 
     return sent;
 }
