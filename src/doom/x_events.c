@@ -1172,12 +1172,6 @@ int writeWebsocketLog(char *msg, size_t len)
 
 #endif /* HAVE_LIBTLS */
 
-// Our no-op reader for telemetry systems that don't give feedback.
-static int readNoOp(char *buf, size_t len)
-{
-    return 0;
-}
-
 
 //////////////////////////////////////////////////////////////////////////////
 //////// Basic framework housekeeping
@@ -1186,8 +1180,6 @@ static int readNoOp(char *buf, size_t len)
 int X_InitTelemetry(void)
 {
     ASSERT_TELEMETRY_ON(0);
-
-    printf("%s: XXX\n", __func__);
 
     if (logger.type < 1)
     {
@@ -1198,14 +1190,16 @@ int X_InitTelemetry(void)
                 logger.init = initFileLog;
                 logger.close = closeFileLog;
                 logger.write = writeFileLog;
-                logger.read = readNoOp;
+                logger.read = NULL;
+                logger.poll = NULL;
                 break;
             case UDP_MODE:
                 logger.type = UDP_MODE;
                 logger.init = initUdpLog;
                 logger.close = closeUdpLog;
                 logger.write = writeUdpLog;
-                logger.read = readNoOp;
+                logger.read = NULL;
+                logger.poll = NULL;
                 break;
             case KAFKA_MODE:
                 logger.type = KAFKA_MODE;
@@ -1213,20 +1207,23 @@ int X_InitTelemetry(void)
                 logger.close = closeKafka;
                 logger.write = writeKafkaLog;
                 logger.read = readKafkaLog;
+                logger.poll = NULL;
                 break;
             case WEBSOCKET_MODE:
                 logger.type = WEBSOCKET_MODE;
                 logger.init = initWebsocketPublisher;
                 logger.close = closeWebsocketPublisher;
                 logger.write = writeWebsocketLog;
-                logger.read = readNoOp;
+                logger.read = NULL;
+                logger.poll = NULL;
                 break;
             case MQTT_MODE:
                 logger.type = MQTT_MODE;
                 logger.init = initMqttPublisher;
                 logger.close = closeMqttPublisher;
                 logger.write = writeMqttLog;
-                logger.read = readNoOp; // XXX TODO
+                logger.read = NULL;
+                logger.poll = NULL;
             default:
                 I_Error("X_InitTelemetry: Unsupported telemetry mode (%d)", telemetry_mode);
         }
@@ -1449,7 +1446,7 @@ int X_GetFeedback(char *buf, size_t buflen)
 {
     int res = -1;
 
-    if (logger.type != KAFKA_MODE)
+    if (logger.read == NULL)
         return -1;
 
     if (buf == NULL || buflen == 0)
@@ -1460,4 +1457,12 @@ int X_GetFeedback(char *buf, size_t buflen)
         printf("%s: sadness...", __func__);
 
     return res;
+}
+
+int X_Poll(void)
+{
+    if (logger.poll == NULL)
+        return -1;
+
+    return logger.poll();
 }

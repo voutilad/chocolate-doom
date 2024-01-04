@@ -90,6 +90,9 @@ typedef struct {
 
     // Read a message back from the telemetry service.
     int (*read)(char* buf, size_t len);
+
+    // Optional poll handler to call every frame.
+    int (*poll)(void);
 } Logger;
 
 int X_InitTelemetry(void);
@@ -120,6 +123,7 @@ void X_LogWeaponPickup(mobj_t *actor, weapontype_t weapon);
 void X_LogCardPickup(player_t *player, card_t card);
 
 int X_GetFeedback(char *buf, size_t buflen);
+int X_Poll(void);
 
 void X_BindTelemetryVariables(void);
 
