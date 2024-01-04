@@ -974,7 +974,7 @@ int initWebsocketPublisher(void)
 
     printf("X_InitTelemetry: websocket mode enabled\n");
 
-    if (ws_port < 0 || ws_port > 0xffff)
+    if (ws_port < 1 || ws_port > 0xffff)
         I_Error("invalid websocket port: %d", ws_port);
     port = (uint16_t)ws_port;
 
