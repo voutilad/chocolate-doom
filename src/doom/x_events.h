@@ -86,7 +86,7 @@ typedef struct {
 
     // Writes to the backing logger, should return bytes written successfully
     // or < 0 on error.
-    int (*write)(char* buf, size_t len);
+    int (*write)(const char* buf, size_t len);
 
     // Read a message back from the telemetry service.
     int (*read)(char* buf, size_t len);

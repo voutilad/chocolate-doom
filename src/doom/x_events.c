@@ -499,7 +499,7 @@ static int closeFileLog(void)
 }
 
 // A naive write implementation for our filesystem logger
-int writeFileLog(char* msg, size_t len)
+int writeFileLog(const char* msg, size_t len)
 {
     int n = write(log_fd, msg, len);
     write(log_fd, "\n", 1);
@@ -564,7 +564,7 @@ static int closeUdpLog(void)
 }
 
 // Try to create and broadcast a UDPpacket;
-static int writeUdpLog(char *msg, size_t len)
+static int writeUdpLog(const char *msg, size_t len)
 {
     // We mutate the same UDPpacket, updating the payload in .data and the .len
     if (!M_StringCopy((char*)packet->data, msg, len + 1))
@@ -864,7 +864,7 @@ int closeKafka(void)
  * Publishes an event to a given Topic, using the SessionID as the key and sets
  * the value to the JSON msg payload.
  */
-static int writeKafkaLog(char *msg, size_t len)
+static int writeKafkaLog(const char *msg, size_t len)
 {
     int events = 0;
     static int flushed = 0;
@@ -953,7 +953,7 @@ int closeKafka(void)
     return 0;
 }
 
-int writeKafkaLog(char *msg, size_t len)
+int writeKafkaLog(const char *msg, size_t len)
 {
     return 1;
 }
@@ -1005,7 +1005,7 @@ int closeWebsocketPublisher(void)
     return 0;
 }
 
-int writeWebsocketLog(char *msg, size_t len)
+int writeWebsocketLog(const char *msg, size_t len)
 {
     ssize_t sent, idx = 0;
     uint16_t sz_key = 0, sz_json = 0;
@@ -1121,7 +1121,7 @@ int closeMqttPublisher(void)
     return closeWebsocketPublisher();
 }
 
-int writeMqttLog(char *msg, size_t len)
+int writeMqttLog(const char *msg, size_t len)
 {
     // XXX SESSION_ID_CHAR_LEN is 25ish.
     static char topic[64] = { 0 };
@@ -1144,11 +1144,11 @@ int closeMqttPublisher(void)
     return 0;
 }
 
-int writeMqttLog(char *msg, size_t len)
+int writeMqttLog(const char *msg, size_t len)
 {
     return 1;
 }
-#endif HAVE_MQTT
+#endif /* HAVE_MQTT */
 
 #else /* HAVE_LIBTLS */
 
@@ -1165,7 +1165,7 @@ int closeWebsocketPublisher(void)
     return 0;
 }
 
-int writeWebsocketLog(char *msg, size_t len)
+int writeWebsocketLog(const char *msg, size_t len)
 {
     return 1;
 }
