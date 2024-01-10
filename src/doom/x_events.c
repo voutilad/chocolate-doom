@@ -94,12 +94,13 @@ static int kafka_sasl_mechanism = 0;
 #ifdef HAVE_LIBTLS
 static char *ws_host = "localhost";
 static int ws_port = 8000;
-static char *ws_resource = "/";
+static char *ws_path = "/";
 static int ws_tls_enabled = 0;
 static int ws_kv_mode = 1;
 #ifdef HAVE_MQTT
-static uint8_t mqtt_send[4096];
-static uint8_t mqtt_recv[4096];
+static int mqtt_published = 0; // have we published anything yet?
+static uint8_t mqtt_send[524288];
+static uint8_t mqtt_recv[524288];
 static char *mqtt_topic_p = "doom/%s/%s"; // doom/[session]/[type]
 #endif /* HAVE_MQTT */
 #endif /* HAVE_LIBTLS */
@@ -988,8 +989,9 @@ int initWebsocketPublisher(void)
     if (ret)
         I_Error("websocket connection failure: %d", ret);
 
-    printf("%s: handshaking with resource \"%s\"\n", __func__, ws_resource);
-    ret = dumb_handshake(&ws, ws_host, ws_resource);
+    printf("%s: handshaking with ws%s://%s:%d%s\n", __func__,
+           ws_tls_enabled ? "s" : "", ws_host, ws_port, ws_path);
+    ret = dumb_handshake(&ws, ws_path, "mqtt");
     if (ret)
         I_Error("websocket handshake failure: %d", ret);
 
@@ -1088,20 +1090,29 @@ int initMqttPublisher(void)
     if (ret)
         return ret;
 
+    memset(mqtt_send, 0, sizeof(mqtt_send));
+    memset(mqtt_recv, 0, sizeof(mqtt_recv));
+
     h = &ws;
     mqtt_ret = mqtt_init(&client, h, mqtt_send, sizeof(mqtt_send), mqtt_recv,
                          sizeof(mqtt_recv), mqtt_callback);
     if (mqtt_ret != MQTT_OK)
         I_Error("mqtt_init: %s", mqtt_error_str(client.error));
+    printf("%s: mqtt initialized\n", __func__);
 
+    // TODO: use session id as client id?
     mqtt_ret = mqtt_connect(&client, NULL, NULL, NULL, 0, NULL, NULL,
-                            MQTT_CONNECT_CLEAN_SESSION, 30);
+                            MQTT_CONNECT_CLEAN_SESSION, 400);
     if (mqtt_ret != MQTT_OK)
         I_Error("mqtt_connect: %s", mqtt_error_str(client.error));
 
-    // TODO: send initialization message?
+    // Eagerly call sync to actually establish the connection. If we don't, we
+    // could timeout early.
+    mqtt_ret = mqtt_sync(&client);
+    if (mqtt_ret != MQTT_OK)
+        I_Error("mqtt_sync: %s", mqtt_error_str(client.error));
 
-    // XXX TODO: we need to register a ticker
+    printf("%s: mqtt connected\n", __func__);
 
     return 0;
 }
@@ -1119,12 +1130,37 @@ int closeMqttPublisher(void)
 int writeMqttLog(const char *msg, size_t len)
 {
     // XXX SESSION_ID_CHAR_LEN is 25ish.
-    static char topic[64] = { 0 };
+    static char topic[128] = { 0 };
+    enum MQTTErrors mqtt_ret;
 
+    // XXX this should be done only once per session
+    memset(topic, 0, sizeof(topic));
     M_snprintf(topic, sizeof(topic), mqtt_topic_p, session_id, "data");
 
-    return 1;
+    mqtt_ret = mqtt_publish(&client, topic, msg, len, MQTT_PUBLISH_QOS_0);
+    if (mqtt_ret != MQTT_OK) {
+        printf("%s: %s\n", __func__, mqtt_error_str(client.error));
+        return 0;
+    }
+
+    if (!mqtt_published)
+        mqtt_published = 1;
+
+    return len;
 }
+
+int pollMqtt(void)
+{
+    if (mqtt_published) {
+        if (mqtt_sync(&client) != MQTT_OK) {
+            printf("%s: %s\n", __func__, mqtt_error_str(client.error));
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 #else /* HAVE_MQTT */
 int initMqttPublisher(void)
 {
@@ -1143,6 +1179,8 @@ int writeMqttLog(const char *msg, size_t len)
 {
     return 1;
 }
+
+int (*mqttPoll)(void) = NULL;
 #endif /* HAVE_MQTT */
 
 #else /* HAVE_LIBTLS */
@@ -1218,7 +1256,7 @@ int X_InitTelemetry(void)
                 logger.close = closeMqttPublisher;
                 logger.write = writeMqttLog;
                 logger.read = NULL;
-                logger.poll = NULL;
+                logger.poll = pollMqtt;
                 break;
             default:
                 I_Error("X_InitTelemetry: Unsupported telemetry mode (%d)", telemetry_mode);
@@ -1306,7 +1344,7 @@ void X_BindTelemetryVariables(void)
 #ifdef HAVE_LIBTLS
     M_BindStringVariable("telemetry_ws_host", &ws_host);
     M_BindIntVariable("telemetry_ws_port", &ws_port);
-    M_BindStringVariable("telemetry_ws_resource", &ws_resource);
+    M_BindStringVariable("telemetry_ws_path", &ws_path);
     M_BindIntVariable("telemetry_ws_tls_enabled", &ws_tls_enabled);
 #endif
 }

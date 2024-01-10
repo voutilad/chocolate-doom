@@ -40,8 +40,8 @@ static int kafka_sasl_mechanism = SASL_PLAIN;
 
 #ifdef HAVE_LIBTLS
 static char *ws_host = NULL;
-static uint16_t ws_port = 8000;
-static char *ws_resource = NULL;
+static int ws_port = 8000;
+static char *ws_path = NULL;
 static int ws_tls_enabled = 1;
 #ifdef HAVE_MQTT
 // TODO: do we need a param here?
@@ -79,8 +79,8 @@ void ConfigTelemetry(TXT_UNCAST_ARG(widget), void *user_data)
                    TXT_NewHorizBox(TXT_NewLabel("    Port: "),
                                    TXT_NewIntInputBox(&ws_port, 6),
                                    NULL),
-                   TXT_NewHorizBox(TXT_NewLabel("Resource: "),
-                                   TXT_NewInputBox(&ws_resource, 50),
+                   TXT_NewHorizBox(TXT_NewLabel("    Path: "),
+                                   TXT_NewInputBox(&ws_path, 44),
                                    NULL),
                    TXT_NewHorizBox(TXT_NewCheckBox("Uses TLS?", &ws_tls_enabled),
                                    NULL),
@@ -143,7 +143,7 @@ void BindTelemetryVariables(void)
 #ifdef HAVE_LIBTLS
     M_BindStringVariable("telemetry_ws_host",           &ws_host);
     M_BindIntVariable("telemetry_ws_port",              &ws_port);
-    M_BindStringVariable("telemetry_ws_resource",       &ws_resource);
+    M_BindStringVariable("telemetry_ws_path",           &ws_path);
     M_BindIntVariable("telemetry_ws_tls_enabled",       &ws_tls_enabled);
 #endif
 }

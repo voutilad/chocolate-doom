@@ -2066,10 +2066,10 @@ static default_t telemetry_defaults_list[] =
     CONFIG_VARIABLE_INT(telemetry_ws_port),
 
     //!
-    // HTTP resource to request on the WebSocket
-    // server during WebSocket upgrade handshake
+    // HTTP path to request on the HTTP server
+    // during WebSocket upgrade handshake
     //
-    CONFIG_VARIABLE_STRING(telemetry_ws_resource),
+    CONFIG_VARIABLE_STRING(telemetry_ws_path),
 
     //!
     // Toggle for using TLS with the WebSocket

@@ -414,6 +414,7 @@ void D_RunFrame()
     int tics;
     static int wipestart;
     static boolean wipe;
+    static boolean x_err = false;
 
     if (wipe)
     {
@@ -445,6 +446,14 @@ void D_RunFrame()
         players[consoleplayer].x_feedback = x_feedback;
         printf("%s: got feedback: %s\n", __func__,
                players[consoleplayer].x_feedback);
+    }
+
+    // XXX every 5 frames (~140ms), poll. This may pump data to/from a server.
+    if (!x_err && I_GetTime() % 5 == 0) {
+        if (X_Poll()) {
+            printf("%s: disabling polling due to error\n", __func__);
+            x_err = true;
+        }
     }
 
     // Update display, next frame, with current state if no profiling is on
